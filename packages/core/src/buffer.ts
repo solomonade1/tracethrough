@@ -1,4 +1,4 @@
-import type { NetworkEvent } from './schema.js';
+import type { NetworkEvent } from './schema.ts';
 
 /**
  * Bounded, insertion-ordered store of exchanges keyed by id. Updates to an existing id keep

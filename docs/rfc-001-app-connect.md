@@ -50,7 +50,11 @@ When a developer **owns** the app being inspected, show the HTTP calls its Node 
 - Events received with no recording session are dropped and counted.
 
 ## Next.js
-`@tracelens/next` exports `register()` for `instrumentation.ts`; it no-ops unless `NEXT_RUNTIME === 'nodejs'`. Support matrix to be validated with a sample app: Next 15/16 × Node 22 (`next dev`, `next start`).
+`@tracelens/next` exports `register()` for `instrumentation.ts`; it no-ops unless `NEXT_RUNTIME === 'nodejs'`.
+
+**Finding (validated 3 Nov 2026):** Next can run work outside the original request's async context. In `next dev` the first render after a compile, and on Next 15 also the first render of a page after boot, saw no SDK context. Next keeps its own request store (`workUnitAsyncStorage`, type `request`, with the incoming headers and URL) around every render and route handler. Next 16 registers it globally as `Symbol.for('@next/work-unit-async-storage@<version>')`, so `@tracelens/next` passes a `requestContext` hook that reads it by symbol prefix without importing Next internals. **When Next's store is present it takes precedence**, even when it says "no trace": it is set by Next precisely around the request being rendered, whereas the SDK's own context could in principle belong to another request if Next resumes queued work from a different continuation, which would be a false link. Next 15 keeps the store module-private, so its first-render gap remains and shows as "Not linked".
+
+Support matrix: see the README.
 
 ## Open questions
 1. Should connected mode also cover API origins different from the page origin (e.g. `api.example.test`)? v1: one origin; list-of-origins is a small extension.

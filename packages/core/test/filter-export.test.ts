@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EXPORT_WARNING, filterEvents, statusClassOf, toHar, toSessionExport, type NetworkEvent } from '../src/index.js';
+import { EXPORT_WARNING, filterEvents, statusClassOf, toHar, toSessionExport, type NetworkEvent } from '../src/index.ts';
 
 let n = 0;
 const ev = (over: Partial<NetworkEvent> = {}): NetworkEvent => ({

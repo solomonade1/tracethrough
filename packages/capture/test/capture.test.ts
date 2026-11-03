@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MASK, NetworkEvent } from '@tracelens/core';
 import { CANARY, startFixtureServer, type FixtureServer } from '@tracelens/fixtures';
-import { CaptureSession, InvalidTargetUrlError, validateTargetUrl, type BrowserChannel } from '../src/index.js';
+import { CaptureSession, InvalidTargetUrlError, validateTargetUrl, type BrowserChannel } from '../src/index.ts';
 
 const channel = process.env.TRACELENS_BROWSER_CHANNEL as BrowserChannel | undefined;
 const PREVIEW_BYTES = 64 * 1024;

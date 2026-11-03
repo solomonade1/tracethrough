@@ -11,8 +11,9 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
     "noEmit": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["src", "test", "electron.vite.config.ts"]
+  "include": ["src", "test", "electron.vite.config.ts", "vitest.next.config.ts"]
 }

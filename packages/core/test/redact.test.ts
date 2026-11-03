@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_REDACTION_POLICY, MASK, createRedactor } from '../src/index.js';
+import { DEFAULT_REDACTION_POLICY, MASK, createRedactor } from '../src/index.ts';
 
 const r = createRedactor();
 const JWT = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';

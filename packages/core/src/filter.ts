@@ -1,4 +1,4 @@
-import type { EventSource, NetworkEvent, RequestType } from './schema.js';
+import type { EventSource, NetworkEvent, RequestType } from './schema.ts';
 
 export type StatusClass = 'pending' | 'failed' | '1xx' | '2xx' | '3xx' | '4xx' | '5xx';
 

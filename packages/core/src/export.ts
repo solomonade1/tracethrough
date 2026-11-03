@@ -1,4 +1,4 @@
-import type { BodyPreview, NetworkEvent } from './schema.js';
+import type { BodyPreview, NetworkEvent } from './schema.ts';
 
 export const EXPORT_WARNING =
   'Exports contain captured traffic. Known secrets are masked, but redaction is defence in depth, not a guarantee: ' +

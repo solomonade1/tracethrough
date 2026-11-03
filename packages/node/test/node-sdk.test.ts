@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MASK, formatTraceparent, newTraceContext, type ServerEventInput } from '@tracelens/core';
 import { startCollector, type Collector } from '@tracelens/collector';
 import { CANARY, startFixtureServer, type FixtureServer } from '@tracelens/fixtures';
-import { register, type TraceLensHandle } from '../src/index.js';
+import { register, type TraceLensHandle } from '../src/index.ts';
 
 const silent = { warn: () => {} };
 

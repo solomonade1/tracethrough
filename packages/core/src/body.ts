@@ -1,5 +1,5 @@
-import type { Redactor } from './redact.js';
-import type { BodyPreview, BodyUnavailableReason } from './schema.js';
+import type { Redactor } from './redact.ts';
+import type { BodyPreview, BodyUnavailableReason } from './schema.ts';
 
 export interface BodyLimits {
   /** Max bytes of redacted text kept as a preview (PRD default 256 KB). */

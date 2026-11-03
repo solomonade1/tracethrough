@@ -1,7 +1,7 @@
 import { request } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { ServerEventInput } from '@tracelens/core';
-import { startCollector, type Collector } from '../src/index.js';
+import { startCollector, type Collector } from '../src/index.ts';
 
 const event: ServerEventInput = {
   id: 'e1',

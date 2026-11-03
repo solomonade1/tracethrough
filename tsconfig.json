@@ -10,8 +10,9 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["packages/*/src", "packages/*/test", "examples/*/*.ts", "scripts", "vitest.config.ts"]
+  "include": ["packages/*/src", "packages/*/test", "examples/node-app/*.ts", "scripts", "vitest.config.ts"]
 }

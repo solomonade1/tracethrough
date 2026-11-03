@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MASK, NetworkEvent, SessionBuffer, buildBodyPreview, createRedactor } from '../src/index.js';
+import { MASK, NetworkEvent, SessionBuffer, buildBodyPreview, createRedactor } from '../src/index.ts';
 
 const r = createRedactor();
 const bytes = (s: string) => new TextEncoder().encode(s);

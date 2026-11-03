@@ -8,5 +8,10 @@
   },
   "dependencies": {
     "@tracelens/node": "workspace:*"
+  },
+  "devDependencies": {
+    "@tracelens/collector": "workspace:*",
+    "@tracelens/core": "workspace:*",
+    "@tracelens/fixtures": "workspace:*"
   }
 }

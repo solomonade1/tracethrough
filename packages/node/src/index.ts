@@ -12,7 +12,7 @@ import {
   type RedactionPolicy,
   type ServerEventInput,
 } from '@tracelens/core';
-import { Exporter } from './exporter.js';
+import { Exporter } from './exporter.ts';
 
 export interface TraceLensNodeOptions {
   /** Defaults to TRACELENS_COLLECTOR_URL. Must be a loopback http URL in v1. */
@@ -27,6 +27,20 @@ export interface TraceLensNodeOptions {
   flushIntervalMs?: number;
   maxQueue?: number;
   logger?: Pick<Console, 'warn'>;
+  /**
+   * Framework hook: the incoming request currently being handled, if the framework tracks it
+   * itself. When it returns a value it takes precedence over the SDK's own tracking, because a
+   * framework that defers work (e.g. Next.js dev compiling a page) can run it outside the
+   * original request's async context.
+   */
+  requestContext?: () => FrameworkRequestContext | undefined;
+}
+
+export interface FrameworkRequestContext {
+  /** Raw incoming `traceparent` header, if any. */
+  traceparent?: string;
+  /** Request path including query, e.g. "/products?page=2". */
+  path?: string;
 }
 
 export interface TraceLensHandle {
@@ -146,13 +160,30 @@ export function register(opts: TraceLensNodeOptions = {}): TraceLensHandle {
   const allowed = (host: string) =>
     !opts.allowTargets?.length || opts.allowTargets.some((t) => (typeof t === 'string' ? t === host : t.test(host)));
 
+  const redactPath = (path: string) => redactor.url(`http://handler${path}`).value.slice('http://handler'.length);
+
   // --- incoming requests: establish trace context for the handler's async lifetime ---------
   const onServerRequest = (message: unknown) => {
     const { request } = message as { request: IncomingMessage };
     const ctx = parseTraceparent(request.headers.traceparent);
-    const path = redactor.url(`http://handler${request.url ?? '/'}`).value.slice('http://handler'.length);
     // Always enter (even with an empty store) so context never carries over between keep-alive requests.
-    context.enterWith({ traceId: ctx?.traceId, handler: `${request.method} ${path}` });
+    context.enterWith({ traceId: ctx?.traceId, handler: `${request.method} ${redactPath(request.url ?? '/')}` });
+  };
+
+  /** The framework's view of the current request wins when it has one (see `requestContext`). */
+  const currentContext = (): RequestContext | undefined => {
+    const own = context.getStore();
+    let framework: FrameworkRequestContext | undefined;
+    try {
+      framework = opts.requestContext?.();
+    } catch {
+      framework = undefined;
+    }
+    if (!framework) return own;
+    const path = framework.path !== undefined ? redactPath(framework.path) : undefined;
+    // Our handler label includes the method; keep it when it describes the same request.
+    const handler = own?.handler && path && own.handler.endsWith(` ${path}`) ? own.handler : path;
+    return { traceId: parseTraceparent(framework.traceparent)?.traceId, handler };
   };
 
   // --- outgoing fetch (undici) ----------------------------------------------------------------
@@ -166,7 +197,7 @@ export function register(opts: TraceLensNodeOptions = {}): TraceLensHandle {
       return;
     }
     if (!allowed(url.hostname)) return;
-    const store = context.getStore();
+    const store = currentContext();
     const headers = redactor.headers(requestHeaders(request.headers));
     const safeUrl = redactor.url(url.href);
     inflight.set(request, {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatTraceparent, newTraceContext, parseTraceparent } from '../src/index.js';
+import { formatTraceparent, newTraceContext, parseTraceparent } from '../src/index.ts';
 
 describe('trace context', () => {
   it('round-trips a generated context', () => {

@@ -98,7 +98,43 @@ TRACELENS_COLLECTOR_URL=http://127.0.0.1:47811 TRACELENS_TOKEN=<token> UPSTREAM_
 
 Then inspect `http://127.0.0.1:3005/` with **This is my app** ticked.
 
-Safety defaults: off unless both variables are set; collector must be loopback; off when `NODE_ENV=production` unless `TRACELENS_ALLOW_PRODUCTION=1`; `TRACELENS_DISABLED=1` forces it off. Links are shown only on an exact trace-id match, never guessed. Supported today: Node 20/22 `fetch` (undici). Not yet: `node:http`/Axios clients, Edge runtime.
+Or with the Next.js sample (`examples/next-app`: an SSR page that fetches upstream while rendering, plus a route handler the browser calls):
+
+```bash
+TRACELENS_COLLECTOR_URL=http://127.0.0.1:47811 TRACELENS_TOKEN=<token> UPSTREAM_URL=http://127.0.0.1:4789 pnpm example:next
+```
+
+Then inspect `http://localhost:3000/` with **This is my app** ticked.
+
+Safety defaults: off unless both variables are set; collector must be loopback; off when `NODE_ENV=production` unless `TRACELENS_ALLOW_PRODUCTION=1`; `TRACELENS_DISABLED=1` forces it off. Links are shown only on an exact trace-id match, never guessed.
+
+### Support matrix (verified 3 Nov 2026, Node 22.20, Windows)
+
+| | SSR fetch in a page | Fetch in a route handler | First render of a page after compile / boot |
+|---|---|---|---|
+| Plain Node `http` server | n/a | ✅ linked | ✅ linked |
+| Next.js 16.4 `next dev` | ✅ linked | ✅ linked | ✅ linked (via Next's request store) |
+| Next.js 16.4 `next start` | ✅ linked | ✅ linked | ✅ linked |
+| Next.js 15.5 `next dev` / `next start` | ✅ linked | ✅ linked | ⚠️ shown as "Not linked" |
+
+Known limitations:
+- **Next.js 15:** the first render of each page after a compile (dev) or server boot (start) runs outside the request's async context, and Next 15 keeps its request store private, so that one render's calls appear unlinked. Next 16 exposes the store globally and has no gap.
+- **Next.js 15 + TypeScript 7:** Next 15 refuses TypeScript 7 (it needs the JS compiler API); use TypeScript 6. The sample pins `typescript@^6`.
+- The framework's own calls (Next telemetry, Next dev's version check against `registry.npmjs.org`) appear as unlinked Server rows. Set `NEXT_TELEMETRY_DISABLED=1` to quiet the first.
+- Clients: Node `fetch` (undici) only. Not yet: `node:http`/`https`, Axios. Edge runtime is not supported.
+- In this monorepo the packages export TypeScript source, so a Next app needs `transpilePackages: ['@tracelens/next', '@tracelens/node', '@tracelens/core']` (see the sample's `next.config.mjs`). Published builds will not.
+
+Smoke-test the SDK inside Next.js without the desktop app (prints which calls linked to which trace):
+
+```bash
+pnpm smoke:next dev
+```
+
+End-to-end test against the real Next.js sample (slower; builds the desktop app first):
+
+```bash
+pnpm test:e2e:next
+```
 
 ## Ground rules
 

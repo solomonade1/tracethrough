@@ -202,9 +202,12 @@ Design: [docs/rfc-001-app-connect.md](docs/rfc-001-app-connect.md).
 | Desktop: collector for app lifetime, token persisted in userData with Regenerate, Connect App panel with copyable env/snippets, "This is my app" option | ✅ |
 | Linking UI (COR-01): browser request → "Server calls"; server call → "Triggered by" + "Handled request"; explicit "Not linked" state | ✅ |
 | E2E: real app + real browser + sample Node app with SDK + upstream; asserts linking both ways and that the API key never renders | ✅ |
-| `@tracelens/next` wrapper | ✅ written · ⚠️ **not yet validated against a real Next.js app** |
-| Sample Next.js app + support matrix (Next 15/16 × `next dev`/`next start`) — Phase 2 exit gate | ⏭ next |
-| Publishable SDK builds (packages currently export TS source; Next would need `transpilePackages`) | ⏭ |
+| `@tracelens/next` wrapper, incl. fallback to Next 16's global request store (finds `Symbol.for("@next/work-unit-async-storage@*")`, no Next imports) that takes precedence over the SDK's own context | ✅ |
+| Sample Next.js app (SSR page fetch + route handler) and support matrix: Next 16.4 dev/start fully linked; Next 15.5 dev/start linked except the first render of a page after compile/boot (see README) — **Phase 2 exit gate met** | ✅ |
+| E2E against real `next dev` (`pnpm test:e2e:next`) incl. React Strict Mode double-fetch, each linked to its own upstream call | ✅ |
+| Relative imports use `.ts` extensions (`allowImportingTsExtensions`) so bundlers such as Turbopack can compile the packages from source; a publish build will need `rewriteRelativeImportExtensions` | ✅ |
+| Publishable SDK builds (`tsc` with `rewriteRelativeImportExtensions` → `dist`; drop the `transpilePackages` requirement) | ⏭ |
+| Next 15 first-render gap: would need Next 15's module-private store via internal `require`; deferred as fragile | ⏭ (won't fix unless pilots need it) |
 | `node:http`/`https` client + Axios coverage | ⏭ |
 | Server events in HAR export carry `_source: server`; consider a separate "server" page grouping | ⏭ |
 
