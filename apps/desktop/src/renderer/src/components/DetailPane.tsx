@@ -89,11 +89,34 @@ function Overview({ e, events }: { e: NetworkEvent; events: NetworkEvent[] }) {
         <td>{v}</td>
       </tr>
     );
-  const link = (x: NetworkEvent) => (
+  const link = (x: NetworkEvent, label: ReactNode = x.urlSanitized) => (
     <button className="link" onClick={() => select(x.id)}>
-      {x.urlSanitized}
+      {label}
     </button>
   );
+  // COR-01: links exist only on an exact trace-id match; nothing is inferred from timing.
+  const linkedServer = e.source === 'browser' && e.traceId ? events.filter((x) => x.source === 'server' && x.traceId === e.traceId) : [];
+  const trigger = e.source === 'server' && e.traceId ? events.find((x) => x.source === 'browser' && x.traceId === e.traceId) : undefined;
+  const serverCalls =
+    e.source === 'browser' && e.traceId ? (
+      linkedServer.length ? (
+        <ul className="links">
+          {linkedServer.map((x) => (
+            <li key={x.id}>{link(x, `${x.state === 'complete' ? x.status : x.state} ${x.method} ${x.urlSanitized}`)}</li>
+          ))}
+        </ul>
+      ) : (
+        <span className="muted">None reported for this request (yet)</span>
+      )
+    ) : undefined;
+  const triggeredBy =
+    e.source === 'server' ? (
+      trigger ? (
+        link(trigger, `${trigger.method} ${trigger.urlSanitized}`)
+      ) : (
+        <span className="muted">Not linked: no browser request carried a matching trace context</span>
+      )
+    ) : undefined;
 
   return (
     <>
@@ -110,12 +133,25 @@ function Overview({ e, events }: { e: NetworkEvent; events: NetworkEvent[] }) {
           {row('Status', e.state === 'complete' ? `${e.status ?? ''} ${e.statusText ?? ''}` : e.state)}
           {row('Type', `${e.type ?? ''}${e.resourceType && e.resourceType !== e.type ? ` (${e.resourceType})` : ''}`)}
           {row('Source', <span className={`badge ${e.source}`}>{e.source === 'browser' ? 'Browser' : 'Server'}</span>)}
-          {row('Started', new Date(e.timestamp).toLocaleTimeString(undefined, { hour12: false, fractionalSecondDigits: 3 }))}
+          {row(
+            'Started',
+            new Date(e.timestamp).toLocaleTimeString(undefined, {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              fractionalSecondDigits: 3,
+              hour12: false,
+            }),
+          )}
           {row('Duration', formatMs(e.durationMs))}
           {row('Navigation', e.isNavigation ? 'Page navigation' : undefined)}
           {row('Redirected from', from && link(from))}
           {row('Redirects to', to && link(to))}
           {row('Service worker', e.fromServiceWorker ? 'Served by service worker' : undefined)}
+          {row('Handled request', e.handler && <Masked text={e.handler} />)}
+          {row('Triggered by', triggeredBy)}
+          {row('Server calls', serverCalls)}
+          {row('Trace ID', e.traceId && <code>{e.traceId}</code>)}
           {row('Redaction', e.redactionApplied ? 'Some values were masked before capture' : 'Nothing matched redaction rules')}
         </tbody>
       </table>

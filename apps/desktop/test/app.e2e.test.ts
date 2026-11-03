@@ -1,12 +1,12 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { _electron as electron, type ElectronApplication, type Page } from 'playwright';
+import { join } from 'node:path';
+import type { ElectronApplication, Page } from 'playwright';
 import { expect } from '@playwright/test';
 import { afterAll, beforeAll, describe, it } from 'vitest';
 import { CANARY, startFixtureServer, type FixtureServer } from '@tracelens/fixtures';
+import { launchApp } from './launch';
 
-const appDir = resolve(import.meta.dirname, '..');
 const screenshotDir = process.env.TRACELENS_E2E_SCREENSHOT_DIR;
 
 let app: ElectronApplication;
@@ -24,10 +24,7 @@ async function snap(name: string) {
 beforeAll(async () => {
   tmp = await mkdtemp(join(tmpdir(), 'tracelens-e2e-'));
   server = await startFixtureServer();
-  const env = { ...process.env, TRACELENS_HEADLESS_CAPTURE: '1' } as Record<string, string>;
-  delete env.ELECTRON_RENDERER_URL;
-  app = await electron.launch({ args: [appDir], env });
-  win = await app.firstWindow();
+  ({ app, win } = await launchApp());
   await win.setViewportSize({ width: 1400, height: 860 }).catch(() => {});
 });
 
@@ -49,7 +46,7 @@ describe('TraceLens desktop', () => {
   it('starts a session and streams requests live (UI-01)', async () => {
     await win.locator('#target-url').fill(`${server.url}/basic`);
     await win.getByRole('button', { name: 'Start session' }).click();
-    await expect(win.getByRole('status')).toHaveText(/Recording/);
+    await expect(win.getByRole('status')).toHaveText(/Recording/, { timeout: 20_000 }); // includes browser launch
     await expect(rowFor('/api/slow')).toBeVisible({ timeout: 20_000 });
     await expect(rowFor('/api/slow').locator('.c-status')).toHaveText('200');
     expect(await rows().count()).toBeGreaterThanOrEqual(12);

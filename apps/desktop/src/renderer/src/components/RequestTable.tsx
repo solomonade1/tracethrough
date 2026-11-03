@@ -5,6 +5,24 @@ import { formatBytes, formatMs, nameOf, statusLabel, statusTone } from '../forma
 import { useInspector } from '../store';
 
 const ROW_HEIGHT = 26;
+
+const SHORT_REASON: Record<string, string> = {
+  binary: 'binary',
+  redirect: 'redirect',
+  empty: '0 B',
+  'too-large': 'too large',
+  streamed: 'stream',
+  'read-failed': 'n/a',
+  'omitted-by-policy': 'omitted',
+};
+
+/** Known size wins; otherwise a short reason (full explanation lives in the Response tab). */
+function sizeCell(e: NetworkEvent) {
+  const body = e.responseBody;
+  if (body?.sizeBytes !== undefined && body.unavailableReason !== 'empty') return formatBytes(body.sizeBytes);
+  if (body?.unavailableReason) return <span className="muted">{SHORT_REASON[body.unavailableReason] ?? 'n/a'}</span>;
+  return '';
+}
 const COLUMNS = ['Status', 'Method', 'Type', 'Name', 'Domain', 'Size', 'Time', 'Source'];
 
 export function RequestTable({ events }: { events: NetworkEvent[] }) {
@@ -89,7 +107,7 @@ export function RequestTable({ events }: { events: NetworkEvent[] }) {
                     {e.domain}
                   </div>
                   <div role="gridcell" className="cell c-size">
-                    {e.responseBody?.unavailableReason ? <span className="muted">{e.responseBody.unavailableReason}</span> : formatBytes(e.responseBody?.sizeBytes)}
+                    {sizeCell(e)}
                   </div>
                   <div role="gridcell" className="cell c-time">
                     {formatMs(e.durationMs)}

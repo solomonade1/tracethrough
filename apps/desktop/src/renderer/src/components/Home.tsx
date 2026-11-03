@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useInspector } from '../store';
+import { ConnectPanel } from './ConnectPanel';
 
 export function Home() {
   const status = useInspector((s) => s.status);
   const [url, setUrl] = useState('https://');
+  const [connect, setConnect] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const starting = status.state === 'starting';
 
@@ -11,7 +13,7 @@ export function Home() {
     e.preventDefault();
     setError(undefined);
     useInspector.getState().reset();
-    const result = await window.tracelens.startSession(url.trim());
+    const result = await window.tracelens.startSession(url.trim(), { connect });
     if (!result.ok) setError(result.error);
   }
 
@@ -48,6 +50,13 @@ export function Home() {
             {starting ? 'Starting…' : 'Start session'}
           </button>
         </form>
+        <label className="check">
+          <input type="checkbox" checked={connect} onChange={(e) => setConnect(e.target.checked)} />
+          <span>
+            This is my app: link server calls reported by App Connect (adds a <code>traceparent</code> header to requests
+            to this origin only)
+          </span>
+        </label>
         {(error ?? status.error) && (
           <p id="url-error" role="alert" className="error">
             {error ?? status.error}
@@ -56,16 +65,17 @@ export function Home() {
         <ul className="facts">
           <li>Only inspect sites you are authorized to access.</li>
           <li>
-            You will see <strong>browser</strong> traffic. Calls the site's own servers make to other services are not
-            visible.
+            You will see <strong>browser</strong> traffic. A site's own server-side calls are visible only for apps you
+            instrument with App Connect.
           </li>
           <li>Sessions are kept in memory until you export them.</li>
         </ul>
       </section>
 
-      <section className="card disabled" aria-disabled>
-        <h2>Connect App</h2>
-        <p className="muted">Instrument a Next.js / Node app you own to see its server-side calls. Coming in Phase 2.</p>
+      <section className="card" aria-labelledby="connect-title">
+        <h2 id="connect-title">Connect App</h2>
+        <p className="muted">See the HTTP calls your own Node.js / Next.js server makes, linked to the browser requests that caused them.</p>
+        <ConnectPanel />
       </section>
     </main>
   );

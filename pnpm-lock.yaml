@@ -41,6 +41,9 @@ importers:
       '@tracelens/capture':
         specifier: workspace:*
         version: link:../../packages/capture
+      '@tracelens/collector':
+        specifier: workspace:*
+        version: link:../../packages/collector
       '@tracelens/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -85,6 +88,16 @@ importers:
         specifier: ^4.1.12
         version: 4.1.12(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15))
 
+  examples/node-app:
+    dependencies:
+      '@tracelens/node':
+        specifier: workspace:*
+        version: link:../../packages/node
+    devDependencies:
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+
   packages/capture:
     dependencies:
       '@tracelens/core':
@@ -98,6 +111,12 @@ importers:
         specifier: workspace:*
         version: link:../fixtures
 
+  packages/collector:
+    dependencies:
+      '@tracelens/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/core:
     dependencies:
       zod:
@@ -105,6 +124,25 @@ importers:
         version: 4.6.7
 
   packages/fixtures: {}
+
+  packages/next:
+    dependencies:
+      '@tracelens/node':
+        specifier: workspace:*
+        version: link:../node
+
+  packages/node:
+    dependencies:
+      '@tracelens/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@tracelens/collector':
+        specifier: workspace:*
+        version: link:../collector
+      '@tracelens/fixtures':
+        specifier: workspace:*
+        version: link:../fixtures
 
 packages:
 

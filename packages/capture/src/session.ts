@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { chromium, type Browser, type BrowserContext, type Page, type Request, type Response } from 'playwright';
+import { chromium, type Browser, type BrowserContext, type Page, type Request, type Response, type Route } from 'playwright';
 import {
   DEFAULT_BODY_LIMITS,
   DEFAULT_REDACTION_POLICY,
   SessionBuffer,
   buildBodyPreview,
   createRedactor,
+  formatTraceparent,
+  newTraceContext,
   normalizeMime,
   unavailableBody,
   type BodyLimits,
@@ -15,7 +17,9 @@ import {
   type RedactionPolicy,
   type Redactor,
   type RequestType,
+  type ServerEventInput,
   type Timing,
+  type TraceContext,
 } from '@tracelens/core';
 
 /** `chromium` = Playwright's bundled build; `chrome` / `msedge` = the user's installed browser (fresh, isolated profile). */
@@ -33,6 +37,12 @@ export interface CaptureOptions {
   maxBodyReadBytes?: number;
   /** Ring-buffer capacity; older exchanges are dropped (and counted) beyond this. */
   maxEvents?: number;
+  /**
+   * App Connect: an origin the developer owns (e.g. "http://localhost:3000"). Requests to it get a
+   * fresh W3C `traceparent` so server events can be linked. Never applied to other origins.
+   * Note: Playwright routing bypasses the HTTP cache for these requests.
+   */
+  connectedOrigin?: string;
 }
 
 export class InvalidTargetUrlError extends Error {}
@@ -136,6 +146,9 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
   readonly #startedAt = new WeakMap<Request, number>();
   readonly #navigationByPage = new WeakMap<Page, string>();
   readonly #inFlight = new Set<Promise<void>>();
+  readonly #traces = new WeakMap<Request, TraceContext>();
+  /** Origin that receives `traceparent` (App Connect), normalized; undefined when not connected. */
+  readonly connectedOrigin: string | undefined;
   #page: Page | undefined;
   #closed = false;
 
@@ -143,6 +156,7 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
     super();
     this.#browser = browser;
     this.#context = context;
+    this.connectedOrigin = opts.connectedOrigin ? validateTargetUrl(opts.connectedOrigin).origin : undefined;
     this.#redactor = createRedactor(opts.redaction ?? DEFAULT_REDACTION_POLICY);
     this.#bodyLimits = opts.bodyLimits ?? DEFAULT_BODY_LIMITS;
     this.#maxBodyReadBytes = opts.maxBodyReadBytes ?? 10 * 1024 * 1024;
@@ -166,6 +180,8 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
     // A fresh context never shares cookies/storage with the user's own browser profile.
     const context = await browser.newContext({ serviceWorkers: 'allow', viewport: headless ? undefined : null });
     const session = new CaptureSession(browser, context, channel, opts);
+    const origin = session.connectedOrigin;
+    if (origin) await context.route((url) => url.origin === origin, (route) => session.#injectTrace(route));
     session.#page = await context.newPage();
     // Navigation failures (DNS, TLS…) are captured as failed events, so they do not reject start().
     await session.#page.goto(target.href, { waitUntil: 'commit' }).catch(() => {});
@@ -189,9 +205,74 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
   async stop(): Promise<void> {
     if (this.#closed) return;
     this.#closed = true;
+    // Closing the context ends all capture within tens of ms; the browser process can take seconds
+    // to exit on Windows, so announce the stop before waiting for it.
     await this.#context.close().catch(() => {});
-    await this.#browser.close().catch(() => {});
     this.emit('closed');
+    await this.#browser.close().catch(() => {});
+  }
+
+  /**
+   * Adds a server event reported by an App Connect SDK. The sender is not trusted: source and
+   * session are forced, ids are namespaced so they cannot overwrite browser events, and this
+   * session's redaction policy is applied again.
+   */
+  ingestServerEvent(input: ServerEventInput): boolean {
+    if (this.#closed) return false;
+    const r = this.#redactor;
+    const url = r.url(input.urlSanitized);
+    const reqHeaders = input.requestHeadersSanitized ? r.headers(input.requestHeadersSanitized) : undefined;
+    const resHeaders = input.responseHeadersSanitized ? r.headers(input.responseHeadersSanitized) : undefined;
+    const reqBody = input.requestBody?.preview !== undefined ? r.body(input.requestBody.preview, input.requestBody.mime) : undefined;
+    const resBody = input.responseBody?.preview !== undefined ? r.body(input.responseBody.preview, input.responseBody.mime) : undefined;
+    const space = input.handler?.indexOf(' ') ?? -1;
+    const handler =
+      input.handler && space > 0
+        ? `${input.handler.slice(0, space)} ${r.url(`http://h${input.handler.slice(space + 1)}`).value.slice('http://h'.length)}`
+        : input.handler;
+    const error = input.error ? { ...input.error, message: r.url(input.error.message).value } : undefined;
+
+    this.#emit({
+      ...input,
+      id: `server:${input.id}`,
+      sessionId: this.id,
+      source: 'server',
+      urlSanitized: url.value,
+      domain: hostnameOf(url.value) || input.domain,
+      requestHeadersSanitized: reqHeaders?.value,
+      responseHeadersSanitized: resHeaders?.value,
+      requestBody: input.requestBody && { ...input.requestBody, preview: reqBody?.value },
+      responseBody: input.responseBody && { ...input.responseBody, preview: resBody?.value },
+      handler,
+      error,
+      isNavigation: false,
+      navigationId: undefined,
+      redirectedFromId: undefined,
+      redactionApplied:
+        !!input.redactionApplied || url.redacted || !!reqHeaders?.redacted || !!resHeaders?.redacted || !!reqBody?.redacted || !!resBody?.redacted,
+    });
+    return true;
+  }
+
+  #traceFor(req: Request): TraceContext {
+    let t = this.#traces.get(req);
+    if (!t) this.#traces.set(req, (t = newTraceContext()));
+    return t;
+  }
+
+  #isConnected(url: string): boolean {
+    if (!this.connectedOrigin) return false;
+    try {
+      return new URL(url).origin === this.connectedOrigin;
+    } catch {
+      return false;
+    }
+  }
+
+  async #injectTrace(route: Route) {
+    const req = route.request();
+    const traceparent = formatTraceparent(this.#traceFor(req));
+    await route.continue({ headers: { ...req.headers(), traceparent } }).catch(() => {});
   }
 
   #track(p: Promise<void>) {
@@ -237,11 +318,14 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
     const requestBody = postData
       ? buildBodyPreview(postData, req.headers()['content-type'], this.#redactor, this.#bodyLimits)
       : undefined;
+    const trace = this.#isConnected(req.url()) ? this.#traceFor(req) : undefined;
 
     this.#emit({
       id,
       sessionId: this.id,
       source: 'browser',
+      traceId: trace?.traceId,
+      spanId: trace?.spanId,
       state: 'pending',
       timestamp: new Date().toISOString(),
       method: req.method(),

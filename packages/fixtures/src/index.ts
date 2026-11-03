@@ -99,6 +99,13 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
       await new Promise((r) => setTimeout(r, ms));
       return json(res, 200, { waitedMs: ms });
     }
+    case '/api/headers':
+      return json(
+        res,
+        200,
+        { traceparent: req.headers.traceparent ?? null, hasCookie: !!req.headers.cookie },
+        { 'access-control-allow-origin': '*' },
+      );
     case '/api/hang':
       return; // never responds; used for abort/cancel scenarios
     default:

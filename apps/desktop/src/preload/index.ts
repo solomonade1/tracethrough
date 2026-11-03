@@ -8,10 +8,12 @@ function subscribe<T>(channel: string, listener: (payload: T) => void): () => vo
 }
 
 const api: TraceLensApi = {
-  startSession: (url) => ipcRenderer.invoke(IPC.start, url),
+  startSession: (url, options) => ipcRenderer.invoke(IPC.start, url, options),
   stopSession: () => ipcRenderer.invoke(IPC.stop),
   clearSession: () => ipcRenderer.invoke(IPC.clear),
   exportSession: (format) => ipcRenderer.invoke(IPC.export, format),
+  getConnectInfo: () => ipcRenderer.invoke(IPC.connectInfo),
+  regenerateToken: () => ipcRenderer.invoke(IPC.regenerateToken),
   onEvents: (listener) => subscribe<EventBatch>(IPC.events, listener),
   onStatus: (listener) => subscribe<SessionStatus>(IPC.status, listener),
 };

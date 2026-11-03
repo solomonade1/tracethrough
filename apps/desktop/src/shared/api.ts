@@ -6,11 +6,18 @@ export const IPC = {
   stop: 'tl:stop',
   clear: 'tl:clear',
   export: 'tl:export',
+  connectInfo: 'tl:connect-info',
+  regenerateToken: 'tl:regenerate-token',
   events: 'tl:events',
   status: 'tl:status',
 } as const;
 
 export type ExportFormat = 'har' | 'json';
+
+export interface StartOptions {
+  /** App Connect: treat the target URL's origin as the developer's own app and link server events. */
+  connect: boolean;
+}
 
 export interface SessionStatus {
   state: 'idle' | 'starting' | 'recording' | 'stopped';
@@ -18,6 +25,8 @@ export interface SessionStatus {
   url?: string;
   /** Browser actually launched (bundled Chromium, Chrome or Edge). */
   channel?: string;
+  /** Origin receiving `traceparent` when App Connect is on for this session. */
+  connectedOrigin?: string;
   /** Exchanges evicted by the session cap since the session started. */
   dropped: number;
   error?: string;
@@ -29,15 +38,29 @@ export interface EventBatch {
   removed: string[];
 }
 
+/** Local collector details shown on the Connect App panel. */
+export interface ConnectInfo {
+  listening: boolean;
+  collectorUrl?: string;
+  token?: string;
+  /** Server events accepted into a session since launch. */
+  received: number;
+  /** Server events that arrived while no session was recording. */
+  ignored: number;
+  error?: string;
+}
+
 export type StartResult = { ok: true } | { ok: false; error: string };
 export type ExportResult = { saved: false } | { saved: true; path: string };
 
 /** The only surface the renderer has into the app (exposed as `window.tracelens`). */
 export interface TraceLensApi {
-  startSession(url: string): Promise<StartResult>;
+  startSession(url: string, options?: StartOptions): Promise<StartResult>;
   stopSession(): Promise<void>;
   clearSession(): Promise<void>;
   exportSession(format: ExportFormat): Promise<ExportResult>;
+  getConnectInfo(): Promise<ConnectInfo>;
+  regenerateToken(): Promise<ConnectInfo>;
   onEvents(listener: (batch: EventBatch) => void): () => void;
   onStatus(listener: (status: SessionStatus) => void): () => void;
 }

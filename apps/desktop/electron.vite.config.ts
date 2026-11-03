@@ -14,7 +14,7 @@ const productionCsp = (): Plugin => ({
 });
 
 // Workspace packages ship TypeScript source, so they are bundled rather than externalized.
-const bundleWorkspace = { exclude: ['@tracelens/core', '@tracelens/capture'] };
+const bundleWorkspace = { exclude: ['@tracelens/core', '@tracelens/capture', '@tracelens/collector'] };
 
 export default defineConfig({
   main: {

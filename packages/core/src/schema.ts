@@ -68,8 +68,23 @@ export const NetworkEvent = z.object({
   navigationId: z.string().optional(),
   isNavigation: z.boolean(),
   fromServiceWorker: z.boolean().optional(),
+  /** W3C trace id. Browser and server events are linked only when these match exactly (COR-01). */
   traceId: z.string().optional(),
   spanId: z.string().optional(),
+  /** Server events: the incoming request whose handler made this call, e.g. "GET /products". */
+  handler: z.string().optional(),
   redactionApplied: z.boolean(),
 });
 export type NetworkEvent = z.infer<typeof NetworkEvent>;
+
+/**
+ * What an App Connect SDK sends to the collector. The collector assigns `sessionId` and `source`
+ * and re-applies redaction, so the sender cannot claim to be the browser or skip masking.
+ */
+export const ServerEventInput = NetworkEvent.omit({ sessionId: true, source: true, redactionApplied: true }).extend({
+  redactionApplied: z.boolean().optional(),
+});
+export type ServerEventInput = z.infer<typeof ServerEventInput>;
+
+export const ServerEventBatch = z.object({ events: z.array(ServerEventInput).max(500) });
+export type ServerEventBatch = z.infer<typeof ServerEventBatch>;

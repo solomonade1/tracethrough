@@ -185,8 +185,30 @@ CI: GitHub Actions, Windows + macOS runners, `pnpm typecheck && pnpm test`.
 | Navigation-grouped waterfall (UI-04), copy as cURL (DX-01) | ⏭ Sprint 4 stretch |
 | Packaging (NSIS/dmg), first-run browser check, signing | ⏭ Sprint 4 |
 | Renderer bundle is ~840 KB unminified, mostly Zod pulled in via `@tracelens/core`; split a schema-free entry for the renderer | ⏭ |
+| Stop responds in ~30 ms: capture announces stop after closing the context and lets the browser process exit in the background (Chrome took 0.3–3.5 s to exit on Windows) | ✅ |
 
-## 8. Phase 0 next steps (Day 1)
+## 8. Phase 2 progress (App Connect)
+
+Design: [docs/rfc-001-app-connect.md](docs/rfc-001-app-connect.md).
+
+| Item | Status |
+|---|---|
+| RFC: trace propagation, linking rule, transport, safety defaults | ✅ |
+| `@tracelens/collector`: loopback-only, bearer token (timing-safe), rejects `Origin` and foreign `Host` (DNS rebinding), 1 MB / 500-event caps, Zod-validated, kill-switch reply | ✅ |
+| `@tracelens/node`: `fetch`/undici via `diagnostics_channel` (no monkey-patching); incoming `traceparent` via `http.server.request.start` + AsyncLocalStorage; metadata only | ✅ Node 20 and 22 |
+| SDK safety: off without env, loopback-only collector, production opt-in, `TRACELENS_DISABLED`, bounded coalescing queue, circuit breaker, self-disable on 401/403 or kill switch, never throws into host app | ✅ |
+| Capture: `traceparent` injected only for the connected origin (Playwright routing); browser event records the same trace id | ✅ |
+| Server events re-redacted on ingest, `source` forced, ids namespaced so they cannot overwrite browser events | ✅ |
+| Desktop: collector for app lifetime, token persisted in userData with Regenerate, Connect App panel with copyable env/snippets, "This is my app" option | ✅ |
+| Linking UI (COR-01): browser request → "Server calls"; server call → "Triggered by" + "Handled request"; explicit "Not linked" state | ✅ |
+| E2E: real app + real browser + sample Node app with SDK + upstream; asserts linking both ways and that the API key never renders | ✅ |
+| `@tracelens/next` wrapper | ✅ written · ⚠️ **not yet validated against a real Next.js app** |
+| Sample Next.js app + support matrix (Next 15/16 × `next dev`/`next start`) — Phase 2 exit gate | ⏭ next |
+| Publishable SDK builds (packages currently export TS source; Next would need `transpilePackages`) | ⏭ |
+| `node:http`/`https` client + Axios coverage | ⏭ |
+| Server events in HAR export carry `_source: server`; consider a separate "server" page grouping | ⏭ |
+
+## 9. Phase 0 next steps (Day 1)
 
 1. ✅ Monorepo scaffold, TypeScript, Vitest.
 2. ✅ `@tracelens/core`: event schema, redaction, ring buffer.

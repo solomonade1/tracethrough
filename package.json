@@ -14,7 +14,8 @@
     "fixtures": "tsx scripts/fixtures.ts",
     "browsers:install": "playwright install chromium",
     "test:e2e": "pnpm --filter @tracelens/desktop build && vitest run --config apps/desktop/vitest.config.ts",
-    "app": "pnpm --filter @tracelens/desktop dev"
+    "app": "pnpm --filter @tracelens/desktop dev",
+    "example:node": "pnpm --filter @tracelens/example-node-app start"
   },
   "devDependencies": {
     "@tracelens/capture": "workspace:*",

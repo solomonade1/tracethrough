@@ -144,6 +144,77 @@ describe('CaptureSession against fixture site', () => {
   });
 });
 
+describe('CaptureSession App Connect', () => {
+  let owned: FixtureServer;
+  let thirdParty: FixtureServer;
+  let session: CaptureSession;
+
+  beforeAll(async () => {
+    owned = await startFixtureServer();
+    thirdParty = await startFixtureServer();
+    session = await CaptureSession.start({ url: `${owned.url}/blank`, headless: true, channel, connectedOrigin: owned.url });
+  });
+  afterAll(async () => {
+    await session?.stop();
+    await owned?.close();
+    await thirdParty?.close();
+  });
+
+  it('adds traceparent only to the connected origin and records the same trace id', async () => {
+    const seen = await session.page.evaluate(
+      async ([own, other]) => {
+        await fetch(`${own}/api/set-cookie`);
+        const a = await (await fetch(`${own}/api/headers`)).json();
+        const b = await (await fetch(`${other}/api/headers`)).json();
+        return { own: a, other: b };
+      },
+      [owned.url, thirdParty.url],
+    );
+    await session.settled();
+
+    expect(seen.other.traceparent).toBeNull();
+    expect(seen.own.hasCookie).toBe(true);
+    const [, traceId, spanId] = /^00-([0-9a-f]{32})-([0-9a-f]{16})-01$/.exec(seen.own.traceparent)!;
+
+    const events = session.buffer.all().filter((e) => pathOf(e) === '/api/headers');
+    const ownEvent = events.find((e) => e.urlSanitized.startsWith(owned.url))!;
+    const otherEvent = events.find((e) => e.urlSanitized.startsWith(thirdParty.url))!;
+    expect(ownEvent).toMatchObject({ traceId, spanId });
+    expect(otherEvent.traceId).toBeUndefined();
+  });
+
+  it('ingests server events as untrusted input', () => {
+    const ok = session.ingestServerEvent({
+      id: 'abc',
+      state: 'complete',
+      timestamp: new Date().toISOString(),
+      method: 'GET',
+      urlSanitized: `https://upstream.test/x?token=${CANARY}`,
+      domain: 'spoofed.test',
+      status: 200,
+      isNavigation: true,
+      handler: `GET /page?api_key=${CANARY}`,
+      requestHeadersSanitized: { authorization: `Bearer ${CANARY}` },
+      traceId: '4bf92f3577b34da6a3ce929d0e0e4736',
+    });
+    expect(ok).toBe(true);
+    const e = session.buffer.get('server:abc')!;
+    expect(e).toMatchObject({
+      source: 'server',
+      sessionId: session.id,
+      domain: 'upstream.test',
+      isNavigation: false,
+      urlSanitized: `https://upstream.test/x?token=${MASK}`,
+      handler: `GET /page?api_key=${MASK}`,
+      requestHeadersSanitized: { authorization: `Bearer ${MASK}` },
+      redactionApplied: true,
+      traceId: '4bf92f3577b34da6a3ce929d0e0e4736',
+    });
+    expect(() => NetworkEvent.parse(e)).not.toThrow();
+    expect(JSON.stringify(session.buffer.all())).not.toContain(CANARY);
+  });
+});
+
 describe('CaptureSession limits', () => {
   it('drops oldest exchanges beyond maxEvents and counts them', async () => {
     const server = await startFixtureServer();

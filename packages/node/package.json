@@ -1,0 +1,16 @@
+{
+  "name": "@tracelens/node",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@tracelens/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@tracelens/collector": "workspace:*",
+    "@tracelens/fixtures": "workspace:*"
+  }
+}

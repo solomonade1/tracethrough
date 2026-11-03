@@ -5,6 +5,7 @@ import { BrowserWindow, app, dialog, ipcMain, type IpcMainInvokeEvent } from 'el
 import type { BrowserChannel } from '@tracelens/capture';
 import { EXPORT_WARNING } from '@tracelens/core';
 import { IPC, type ExportFormat, type ExportResult } from '../shared/api';
+import { ConnectService } from './connect';
 import { SessionHost } from './session-host';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -87,11 +88,22 @@ async function exportSession(format: unknown): Promise<ExportResult> {
   return { saved: true, path: filePath };
 }
 
-app.whenReady().then(() => {
-  handle(IPC.start, (url) => host?.start(url));
+// App Connect collector lives for the whole app; server events go to whichever session is recording.
+const connect = new ConnectService({
+  tokenFile: join(app.getPath('userData'), 'collector.json'),
+  port: process.env.TRACELENS_COLLECTOR_PORT ? Number(process.env.TRACELENS_COLLECTOR_PORT) : undefined,
+  token: process.env.TRACELENS_COLLECTOR_TOKEN || undefined,
+  ingest: (events) => host?.ingest(events) ?? 0,
+});
+
+app.whenReady().then(async () => {
+  handle(IPC.start, (url, options) => host?.start(url, options));
   handle(IPC.stop, () => host?.stop());
   handle(IPC.clear, () => host?.clear());
   handle(IPC.export, (format) => exportSession(format));
+  handle(IPC.connectInfo, () => connect.info());
+  handle(IPC.regenerateToken, () => connect.regenerate());
+  await connect.start();
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -101,3 +113,5 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
+
+app.on('will-quit', () => void connect.close());

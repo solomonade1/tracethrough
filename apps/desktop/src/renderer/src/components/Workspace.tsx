@@ -45,6 +45,11 @@ export function Workspace() {
           {status.url}
         </span>
         {status.channel && <span className="chip static">{status.channel}</span>}
+        {status.connectedOrigin && (
+          <span className="chip static connected" title="Server events from App Connect are linked by trace context">
+            App Connect
+          </span>
+        )}
         <div className="spacer" />
         {recording && (
           <button onClick={() => void window.tracelens.stopSession()} className="danger">
@@ -64,7 +69,18 @@ export function Workspace() {
       </header>
 
       <div className="banner" role="note">
-        <strong>Browser traffic only.</strong> Requests this site's servers make to other services are not visible here.
+        {status.connectedOrigin ? (
+          <>
+            <strong>Browser traffic + App Connect.</strong> Server calls appear only if your app at{' '}
+            <code>{status.connectedOrigin}</code> runs the SDK; they link to browser requests only through matching trace
+            context.
+          </>
+        ) : (
+          <>
+            <strong>Browser traffic only.</strong> Requests this site's servers make to other services are not visible
+            here.
+          </>
+        )}{' '}
         Secrets are masked before anything is stored or exported.
         {notice && <span className="notice"> {notice}</span>}
       </div>
