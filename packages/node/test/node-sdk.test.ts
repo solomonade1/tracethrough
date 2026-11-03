@@ -1,10 +1,10 @@
 import { Agent, createServer, request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { MASK, formatTraceparent, newTraceContext, type ServerEventInput } from '@tracelens/core';
-import { startCollector, type Collector } from '@tracelens/collector';
-import { CANARY, startFixtureServer, type FixtureServer } from '@tracelens/fixtures';
-import { register, type TraceLensHandle } from '../src/index.ts';
+import { MASK, formatTraceparent, newTraceContext, type ServerEventInput } from '@tracethrough/core';
+import { startCollector, type Collector } from '@tracethrough/collector';
+import { CANARY, startFixtureServer, type FixtureServer } from '@tracethrough/fixtures';
+import { register, type TraceThroughHandle } from '../src/index.ts';
 
 const silent = { warn: () => {} };
 
@@ -19,9 +19,9 @@ describe('register guards', () => {
     [{ collectorUrl: 'http://10.0.0.5:47811', token: 't' }, {}, /loopback/],
     [{ collectorUrl: 'https://127.0.0.1:47811', token: 't' }, {}, /loopback/],
     [{ collectorUrl: 'http://127.0.0.1:47811', token: 't' }, { NODE_ENV: 'production' }, /production/],
-    [{ collectorUrl: 'http://127.0.0.1:47811', token: 't' }, { TRACELENS_DISABLED: '1' }, /TRACELENS_DISABLED/],
+    [{ collectorUrl: 'http://127.0.0.1:47811', token: 't' }, { TRACETHROUGH_DISABLED: '1' }, /TRACETHROUGH_DISABLED/],
   ])('stays off for %j with env %j', (opts, extraEnv, reason) => {
-    process.env = { ...env, TRACELENS_COLLECTOR_URL: '', TRACELENS_TOKEN: '', ...extraEnv };
+    process.env = { ...env, TRACETHROUGH_COLLECTOR_URL: '', TRACETHROUGH_TOKEN: '', ...extraEnv };
     const handle = register({ ...opts, logger: silent });
     expect(handle.enabled).toBe(false);
     expect(handle.disabledReason).toMatch(reason);
@@ -33,7 +33,7 @@ describe('App Connect Node SDK', () => {
   let upstream: FixtureServer;
   let app: Server;
   let appPort: number;
-  let handle: TraceLensHandle;
+  let handle: TraceThroughHandle;
   const received: ServerEventInput[] = [];
 
   /** Calls the instrumented app with node:http (not fetch) so the test client isn't itself observed. */
@@ -74,7 +74,7 @@ describe('App Connect Node SDK', () => {
           await new Promise((r) => setTimeout(r, 5));
           await Promise.all([fetch(`${upstream.url}/api/not-found`).then((r) => r.text()), fetch(`${upstream.url}/api/error`).then((r) => r.text())]);
         } else if (req.url === '/fail') {
-          await fetch('http://tracelens-nope.invalid/x').catch(() => {});
+          await fetch('http://tracethrough-nope.invalid/x').catch(() => {});
         }
         res.end('ok');
       } catch (err) {
@@ -123,7 +123,7 @@ describe('App Connect Node SDK', () => {
 
   it('records failures with an error code', async () => {
     await callApp('/fail');
-    const [failed] = await eventsFor((e) => e.domain === 'tracelens-nope.invalid');
+    const [failed] = await eventsFor((e) => e.domain === 'tracethrough-nope.invalid');
     expect(failed).toMatchObject({ state: 'failed', error: { code: 'ENOTFOUND' }, handler: 'GET /fail' });
     expect(failed!.traceId).toBeUndefined();
   });

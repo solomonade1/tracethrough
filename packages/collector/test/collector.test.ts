@@ -1,6 +1,6 @@
 import { request } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { ServerEventInput } from '@tracelens/core';
+import type { ServerEventInput } from '@tracethrough/core';
 import { startCollector, type Collector } from '../src/index.ts';
 
 const event: ServerEventInput = {

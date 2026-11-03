@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { filterEvents } from '@tracelens/core';
+import { filterEvents } from '@tracethrough/core';
 import type { ExportFormat } from '../../../shared/api';
 import { useInspector } from '../store';
 import { DetailPane } from './DetailPane';
@@ -17,19 +17,19 @@ export function Workspace() {
 
   async function exportAs(format: ExportFormat) {
     setNotice(undefined);
-    const result = await window.tracelens.exportSession(format);
+    const result = await window.tracethrough.exportSession(format);
     if (result.saved) setNotice(`Exported to ${result.path}`);
   }
 
   async function newSession() {
     if (events.length && !confirm('Start a new session? Exchanges that have not been exported will be discarded.')) return;
-    await window.tracelens.stopSession();
+    await window.tracethrough.stopSession();
     useInspector.getState().reset();
     useInspector.getState().setStatus({ state: 'idle', dropped: 0 });
   }
 
   async function clear() {
-    await window.tracelens.clearSession();
+    await window.tracethrough.clearSession();
     useInspector.getState().reset();
   }
 
@@ -52,7 +52,7 @@ export function Workspace() {
         )}
         <div className="spacer" />
         {recording && (
-          <button onClick={() => void window.tracelens.stopSession()} className="danger">
+          <button onClick={() => void window.tracethrough.stopSession()} className="danger">
             ■ Stop
           </button>
         )}

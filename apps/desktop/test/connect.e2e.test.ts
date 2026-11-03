@@ -4,13 +4,13 @@ import { join, resolve } from 'node:path';
 import type { ElectronApplication, Page } from 'playwright';
 import { expect } from '@playwright/test';
 import { afterAll, beforeAll, describe, it } from 'vitest';
-import { startFixtureServer, type FixtureServer } from '@tracelens/fixtures';
+import { startFixtureServer, type FixtureServer } from '@tracethrough/fixtures';
 import { E2E_COLLECTOR_TOKEN, launchApp } from './launch';
 
 const SECRET_KEY = 'tlsecretkey9q2w';
 const sampleApp = resolve(import.meta.dirname, '../../../examples/node-app/server.ts');
 const tsxCli = createRequire(import.meta.url).resolve('tsx/cli');
-const screenshotDir = process.env.TRACELENS_E2E_SCREENSHOT_DIR;
+const screenshotDir = process.env.TRACETHROUGH_E2E_SCREENSHOT_DIR;
 
 let app: ElectronApplication;
 let win: Page;
@@ -31,8 +31,8 @@ function startSampleApp(collectorUrl: string): Promise<string> {
         NODE_ENV: 'development',
         UPSTREAM_URL: upstream.url,
         UPSTREAM_API_KEY: SECRET_KEY,
-        TRACELENS_COLLECTOR_URL: collectorUrl,
-        TRACELENS_TOKEN: E2E_COLLECTOR_TOKEN,
+        TRACETHROUGH_COLLECTOR_URL: collectorUrl,
+        TRACETHROUGH_TOKEN: E2E_COLLECTOR_TOKEN,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -58,7 +58,7 @@ beforeAll(async () => {
   upstream = await startFixtureServer();
   ({ app, win } = await launchApp());
   await win.setViewportSize({ width: 1400, height: 900 }).catch(() => {});
-  const info = await win.evaluate(() => window.tracelens.getConnectInfo());
+  const info = await win.evaluate(() => window.tracethrough.getConnectInfo());
   if (!info.listening || !info.collectorUrl) throw new Error(`collector not listening: ${info.error}`);
   sampleUrl = await startSampleApp(info.collectorUrl);
 });

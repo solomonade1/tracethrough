@@ -5,10 +5,10 @@ const electronPkg = require.resolve('electron/package.json');
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
-  // Provisional: the product name is a codename until trademark/package checks are done (plan §2.8).
-  appId: 'dev.tracelens.desktop',
-  productName: 'TraceLens',
-  copyright: 'Copyright © 2026 TraceLens',
+  // Product name chosen 3 Nov 2026; trademark search still pending (plan §2.8).
+  appId: 'dev.tracethrough.desktop',
+  productName: 'TraceThrough',
+  copyright: 'Copyright © 2026 TraceThrough',
   directories: { output: 'release', buildResources: 'build' },
   // out/web is the local web mode UI (pnpm web), not part of the desktop app.
   files: ['out/**', '!out/web/**', 'package.json'],
@@ -28,7 +28,7 @@ module.exports = {
     perMachine: false,
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
-    shortcutName: 'TraceLens',
+    shortcutName: 'TraceThrough',
     // Keep the collector token and settings if the app is reinstalled.
     deleteAppDataOnUninstall: false,
   },

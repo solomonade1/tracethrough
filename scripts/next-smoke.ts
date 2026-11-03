@@ -6,9 +6,9 @@ import { spawn, spawnSync } from 'node:child_process';
 import { request } from 'node:http';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { startCollector } from '@tracelens/collector';
-import { formatTraceparent, newTraceContext, type ServerEventInput } from '@tracelens/core';
-import { startFixtureServer } from '@tracelens/fixtures';
+import { startCollector } from '@tracethrough/collector';
+import { formatTraceparent, newTraceContext, type ServerEventInput } from '@tracethrough/core';
+import { startFixtureServer } from '@tracethrough/fixtures';
 
 const mode = process.argv[2] === 'start' ? 'start' : 'dev';
 const appDir = resolve(import.meta.dirname, '../examples/next-app');
@@ -25,9 +25,9 @@ const child = spawn(process.execPath, [nextBin, mode, '-p', String(port), '-H', 
     ...process.env,
     UPSTREAM_URL: upstream.url,
     UPSTREAM_API_KEY: 'tlsecretkey9q2w',
-    TRACELENS_COLLECTOR_URL: collector.url,
-    TRACELENS_TOKEN: collector.token,
-    ...(mode === 'start' ? { TRACELENS_ALLOW_PRODUCTION: '1' } : {}),
+    TRACETHROUGH_COLLECTOR_URL: collector.url,
+    TRACETHROUGH_TOKEN: collector.token,
+    ...(mode === 'start' ? { TRACETHROUGH_ALLOW_PRODUCTION: '1' } : {}),
   },
   stdio: ['ignore', 'pipe', 'pipe'],
   detached: process.platform !== 'win32',
@@ -75,7 +75,7 @@ try {
   for (const e of latest) {
     console.log(`  ${e.state} ${e.status ?? ''} ${e.method} ${e.urlSanitized}  trace=${label(e.traceId)}  handler=${e.handler}`);
   }
-  const appLines = log.split('\n').filter((l) => /App Connect|tracelens|Error|error/i.test(l));
+  const appLines = log.split('\n').filter((l) => /App Connect|tracethrough|Error|error/i.test(l));
   console.log(`\nNext log (filtered):\n${appLines.join('\n')}`);
 } catch (err) {
   console.error(String(err));

@@ -2,8 +2,8 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BrowserWindow, app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron';
-import { BROWSER_LABELS, findBrowsers, type BrowserChannel } from '@tracelens/capture';
-import { EXPORT_WARNING } from '@tracelens/core';
+import { BROWSER_LABELS, findBrowsers, type BrowserChannel } from '@tracethrough/capture';
+import { EXPORT_WARNING } from '@tracethrough/core';
 import { IPC, type ExportFormat, type ExportResult } from '../shared/api';
 import { ConnectService } from './connect';
 import { SessionHost } from './session-host';
@@ -19,7 +19,7 @@ function createWindow() {
     height: 860,
     minWidth: 900,
     minHeight: 560,
-    title: 'TraceLens',
+    title: 'TraceThrough',
     show: false,
     webPreferences: {
       preload: join(here, '../preload/index.cjs'),
@@ -35,8 +35,8 @@ function createWindow() {
   contents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
   host = new SessionHost((channel, payload) => !contents.isDestroyed() && contents.send(channel, payload), {
-    headless: process.env.TRACELENS_HEADLESS_CAPTURE === '1',
-    channel: process.env.TRACELENS_BROWSER_CHANNEL as BrowserChannel | undefined,
+    headless: process.env.TRACETHROUGH_HEADLESS_CAPTURE === '1',
+    channel: process.env.TRACETHROUGH_BROWSER_CHANNEL as BrowserChannel | undefined,
     appVersion: app.getVersion(),
   });
 
@@ -80,8 +80,8 @@ async function exportSession(format: unknown): Promise<ExportResult> {
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const { canceled, filePath } = await dialog.showSaveDialog(win, {
-    defaultPath: `tracelens-${stamp}.${format === 'har' ? 'har' : 'json'}`,
-    filters: format === 'har' ? [{ name: 'HTTP Archive', extensions: ['har'] }] : [{ name: 'TraceLens session', extensions: ['json'] }],
+    defaultPath: `tracethrough-${stamp}.${format === 'har' ? 'har' : 'json'}`,
+    filters: format === 'har' ? [{ name: 'HTTP Archive', extensions: ['har'] }] : [{ name: 'TraceThrough session', extensions: ['json'] }],
   });
   if (canceled || !filePath) return { saved: false };
   await writeFile(filePath, data, 'utf8');
@@ -91,8 +91,8 @@ async function exportSession(format: unknown): Promise<ExportResult> {
 // App Connect collector lives for the whole app; server events go to whichever session is recording.
 const connect = new ConnectService({
   tokenFile: join(app.getPath('userData'), 'collector.json'),
-  port: process.env.TRACELENS_COLLECTOR_PORT ? Number(process.env.TRACELENS_COLLECTOR_PORT) : undefined,
-  token: process.env.TRACELENS_COLLECTOR_TOKEN || undefined,
+  port: process.env.TRACETHROUGH_COLLECTOR_PORT ? Number(process.env.TRACETHROUGH_COLLECTOR_PORT) : undefined,
+  token: process.env.TRACETHROUGH_COLLECTOR_TOKEN || undefined,
   ingest: (events) => host?.ingest(events) ?? 0,
 });
 

@@ -1,7 +1,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { ServerEventBatch, type ServerEventInput } from '@tracelens/core';
+import { ServerEventBatch, type ServerEventInput } from '@tracethrough/core';
 
 export const DEFAULT_COLLECTOR_PORT = 47811;
 

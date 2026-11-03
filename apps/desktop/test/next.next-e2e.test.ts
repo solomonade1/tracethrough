@@ -5,13 +5,13 @@ import { join, resolve } from 'node:path';
 import type { ElectronApplication, Page } from 'playwright';
 import { expect } from '@playwright/test';
 import { afterAll, beforeAll, describe, it } from 'vitest';
-import { startFixtureServer, type FixtureServer } from '@tracelens/fixtures';
+import { startFixtureServer, type FixtureServer } from '@tracethrough/fixtures';
 import { E2E_COLLECTOR_TOKEN, launchApp } from './launch';
 
 const SECRET_KEY = 'tlsecretkey9q2w';
 const nextAppDir = resolve(import.meta.dirname, '../../../examples/next-app');
 const nextBin = createRequire(join(nextAppDir, 'package.json')).resolve('next/dist/bin/next');
-const screenshotDir = process.env.TRACELENS_E2E_SCREENSHOT_DIR;
+const screenshotDir = process.env.TRACETHROUGH_E2E_SCREENSHOT_DIR;
 
 let app: ElectronApplication;
 let win: Page;
@@ -46,7 +46,7 @@ beforeAll(async () => {
   upstream = await startFixtureServer();
   ({ app, win } = await launchApp());
   await win.setViewportSize({ width: 1400, height: 900 }).catch(() => {});
-  const info = await win.evaluate(() => window.tracelens.getConnectInfo());
+  const info = await win.evaluate(() => window.tracethrough.getConnectInfo());
   if (!info.collectorUrl) throw new Error(`collector not listening: ${info.error}`);
 
   const port = await freePort();
@@ -59,8 +59,8 @@ beforeAll(async () => {
       NEXT_TELEMETRY_DISABLED: '1',
       UPSTREAM_URL: upstream.url,
       UPSTREAM_API_KEY: SECRET_KEY,
-      TRACELENS_COLLECTOR_URL: info.collectorUrl,
-      TRACELENS_TOKEN: E2E_COLLECTOR_TOKEN,
+      TRACETHROUGH_COLLECTOR_URL: info.collectorUrl,
+      TRACETHROUGH_TOKEN: E2E_COLLECTOR_TOKEN,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: process.platform !== 'win32',

@@ -1,5 +1,5 @@
 {
-  "name": "@tracelens/next",
+  "name": "@tracethrough/next",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,11 +7,11 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@tracelens/node": "workspace:*"
+    "@tracethrough/node": "workspace:*"
   },
   "devDependencies": {
-    "@tracelens/collector": "workspace:*",
-    "@tracelens/core": "workspace:*",
-    "@tracelens/fixtures": "workspace:*"
+    "@tracethrough/collector": "workspace:*",
+    "@tracethrough/core": "workspace:*",
+    "@tracethrough/fixtures": "workspace:*"
   }
 }

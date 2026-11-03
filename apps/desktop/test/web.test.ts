@@ -3,13 +3,13 @@ import { request, type IncomingMessage } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { BrowserChannel } from '@tracelens/capture';
-import type { NetworkEvent } from '@tracelens/core';
-import { CANARY, startFixtureServer, type FixtureServer } from '@tracelens/fixtures';
+import type { BrowserChannel } from '@tracethrough/capture';
+import type { NetworkEvent } from '@tracethrough/core';
+import { CANARY, startFixtureServer, type FixtureServer } from '@tracethrough/fixtures';
 import type { ConnectInfo, EventBatch, SessionStatus } from '../src/shared/api';
 import { startWebServer, type WebServer } from '../src/web/server';
 
-const channel = process.env.TRACELENS_BROWSER_CHANNEL as BrowserChannel | undefined;
+const channel = process.env.TRACETHROUGH_BROWSER_CHANNEL as BrowserChannel | undefined;
 const TOKEN = 'web-test-token-0123456789abcdef';
 
 interface Reply {
@@ -88,9 +88,9 @@ describe('local web mode server', () => {
   }
 
   beforeAll(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tracelens-web-'));
+    dir = await mkdtemp(join(tmpdir(), 'tracethrough-web-'));
     await mkdir(join(dir, 'static', 'assets'), { recursive: true });
-    await writeFile(join(dir, 'static', 'index.html'), '<!doctype html><title>TraceLens</title>');
+    await writeFile(join(dir, 'static', 'index.html'), '<!doctype html><title>TraceThrough</title>');
     await writeFile(join(dir, 'static', 'assets', 'app.js'), 'console.log(1)');
     await writeFile(join(dir, 'secret.txt'), 'outside the web root');
     fixtures = await startFixtureServer();

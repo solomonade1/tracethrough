@@ -5,8 +5,8 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net';
 import { homedir } from 'node:os';
 import { extname, join, resolve, sep } from 'node:path';
-import { BROWSER_LABELS, findBrowsers, type BrowserChannel } from '@tracelens/capture';
-import { generateToken } from '@tracelens/collector';
+import { BROWSER_LABELS, findBrowsers, type BrowserChannel } from '@tracethrough/capture';
+import { generateToken } from '@tracethrough/collector';
 import { ConnectService } from '../main/connect';
 import { SessionHost } from '../main/session-host';
 import { IPC, type AppEnvironment } from '../shared/api';

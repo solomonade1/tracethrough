@@ -1,5 +1,5 @@
 {
-  "name": "@tracelens/capture",
+  "name": "@tracethrough/capture",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,10 +7,10 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@tracelens/core": "workspace:*",
+    "@tracethrough/core": "workspace:*",
     "playwright": "^1.64.1"
   },
   "devDependencies": {
-    "@tracelens/fixtures": "workspace:*"
+    "@tracethrough/fixtures": "workspace:*"
   }
 }

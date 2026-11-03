@@ -1,5 +1,5 @@
 {
-  "name": "@tracelens/example-next-app",
+  "name": "@tracethrough/example-next-app",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@tracelens/next": "workspace:*",
+    "@tracethrough/next": "workspace:*",
     "next": "16.4.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

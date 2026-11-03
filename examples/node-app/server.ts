@@ -1,13 +1,13 @@
 /**
- * Sample "owned" app for App Connect. Run with TraceLens open:
+ * Sample "owned" app for App Connect. Run with TraceThrough open:
  *
- *   TRACELENS_COLLECTOR_URL=... TRACELENS_TOKEN=... UPSTREAM_URL=http://127.0.0.1:4789 pnpm example:node
+ *   TRACETHROUGH_COLLECTOR_URL=... TRACETHROUGH_TOKEN=... UPSTREAM_URL=http://127.0.0.1:4789 pnpm example:node
  *
  * The page calls /api/products from the browser; that handler calls an upstream API server-side.
  */
-import { register } from '@tracelens/node';
+import { register } from '@tracethrough/node';
 
-const tracelens = register();
+const tracethrough = register();
 
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -44,5 +44,5 @@ const server = createServer(async (req, res) => {
 server.listen(Number(process.env.PORT ?? 3005), '127.0.0.1', () => {
   const { port } = server.address() as AddressInfo;
   console.log(`listening on http://127.0.0.1:${port}`);
-  console.log(`App Connect: ${tracelens.enabled ? 'enabled' : `disabled (${tracelens.disabledReason})`}`);
+  console.log(`App Connect: ${tracethrough.enabled ? 'enabled' : `disabled (${tracethrough.disabledReason})`}`);
 });

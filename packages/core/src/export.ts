@@ -5,7 +5,7 @@ export const EXPORT_WARNING =
   'review the file before sharing it.';
 
 export interface SessionExport {
-  format: 'tracelens-session';
+  format: 'tracethrough-session';
   version: 1;
   exportedAt: string;
   sessionId: string;
@@ -14,7 +14,7 @@ export interface SessionExport {
 }
 
 export function toSessionExport(sessionId: string, events: readonly NetworkEvent[], droppedEvents = 0): SessionExport {
-  return { format: 'tracelens-session', version: 1, exportedAt: new Date().toISOString(), sessionId, droppedEvents, events: [...events] };
+  return { format: 'tracethrough-session', version: 1, exportedAt: new Date().toISOString(), sessionId, droppedEvents, events: [...events] };
 }
 
 // --- HAR 1.2 (http://www.softwareishard.com/blog/har-12-spec/) -------------------------------
@@ -86,8 +86,8 @@ function queryOf(url: string): HarNameValue[] {
 
 function bodyComment(body: BodyPreview | undefined): string | undefined {
   if (!body) return undefined;
-  if (body.unavailableReason) return `TraceLens: body unavailable (${body.unavailableReason})`;
-  if (body.truncated) return `TraceLens: body truncated from ${body.sizeBytes ?? '?'} bytes`;
+  if (body.unavailableReason) return `TraceThrough: body unavailable (${body.unavailableReason})`;
+  if (body.truncated) return `TraceThrough: body truncated from ${body.sizeBytes ?? '?'} bytes`;
   return undefined;
 }
 
@@ -104,7 +104,7 @@ export function toHar(events: readonly NetworkEvent[], creatorVersion = '0.0.0')
     const resBody = e.responseBody;
     const resMime = resBody?.mime ?? e.responseHeadersSanitized?.['content-type'] ?? '';
     const comment = [
-      e.redactionApplied ? 'Redacted by TraceLens' : undefined,
+      e.redactionApplied ? 'Redacted by TraceThrough' : undefined,
       e.redirectedFromId && byId.has(e.redirectedFromId) ? `Redirected from ${byId.get(e.redirectedFromId)!.urlSanitized}` : undefined,
     ]
       .filter(Boolean)
@@ -165,7 +165,7 @@ export function toHar(events: readonly NetworkEvent[], creatorVersion = '0.0.0')
   return {
     log: {
       version: '1.2',
-      creator: { name: 'TraceLens', version: creatorVersion },
+      creator: { name: 'TraceThrough', version: creatorVersion },
       pages: [],
       entries,
       comment: EXPORT_WARNING,

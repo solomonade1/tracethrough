@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { EventFilter, NetworkEvent } from '@tracelens/core';
+import type { EventFilter, NetworkEvent } from '@tracethrough/core';
 import type { EventBatch, SessionStatus } from '../../shared/api';
 
 export type DetailTab = 'overview' | 'headers' | 'request' | 'response' | 'timing';

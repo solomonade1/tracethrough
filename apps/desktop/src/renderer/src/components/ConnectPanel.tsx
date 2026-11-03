@@ -27,13 +27,13 @@ function CopyBlock({ label, text }: { label: string; text: string }) {
 const NEXT_SNIPPET = `// instrumentation.ts (project root or src/)
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { register } = await import('@tracelens/next');
+    const { register } = await import('@tracethrough/next');
     register();
   }
 }`;
 
 const NODE_SNIPPET = `// first import in your server entry
-import { register } from '@tracelens/node';
+import { register } from '@tracethrough/node';
 register();`;
 
 /** App Connect setup: collector status, env vars and framework snippets (RFC-001). */
@@ -43,7 +43,7 @@ export function ConnectPanel() {
 
   useEffect(() => {
     let alive = true;
-    const load = () => void window.tracelens.getConnectInfo().then((i) => alive && setInfo(i));
+    const load = () => void window.tracethrough.getConnectInfo().then((i) => alive && setInfo(i));
     load();
     const timer = setInterval(load, 2000);
     return () => {
@@ -57,8 +57,8 @@ export function ConnectPanel() {
     return <p className="error">{info.error ?? 'Collector is not running.'}</p>;
   }
 
-  const env = `TRACELENS_COLLECTOR_URL=${info.collectorUrl}\nTRACELENS_TOKEN=${showToken ? info.token : '••••••••••••••••'}`;
-  const envForCopy = `TRACELENS_COLLECTOR_URL=${info.collectorUrl}\nTRACELENS_TOKEN=${info.token}`;
+  const env = `TRACETHROUGH_COLLECTOR_URL=${info.collectorUrl}\nTRACETHROUGH_TOKEN=${showToken ? info.token : '••••••••••••••••'}`;
+  const envForCopy = `TRACETHROUGH_COLLECTOR_URL=${info.collectorUrl}\nTRACETHROUGH_TOKEN=${info.token}`;
 
   return (
     <div className="connect">
@@ -95,12 +95,12 @@ export function ConnectPanel() {
         </li>
       </ol>
       <p className="muted small">
-        Off when <code>NODE_ENV=production</code> unless <code>TRACELENS_ALLOW_PRODUCTION=1</code>.{' '}
+        Off when <code>NODE_ENV=production</code> unless <code>TRACETHROUGH_ALLOW_PRODUCTION=1</code>.{' '}
         <button
           className="link"
           onClick={() => {
             if (confirm('Regenerate the token? Apps using the current token will stop sending until updated.'))
-              void window.tracelens.regenerateToken().then(setInfo);
+              void window.tracethrough.regenerateToken().then(setInfo);
           }}
         >
           Regenerate token

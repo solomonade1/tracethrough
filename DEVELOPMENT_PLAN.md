@@ -1,4 +1,4 @@
-# TraceLens — Development Plan
+# TraceThrough — Development Plan
 
 Source: `Developer_Network_Inspector_PRD.md` v1.0 (2 Nov 2026).
 Plan start: Mon 3 Nov 2026. Cadence: 2-week sprints. Estimates assume 1–2 engineers and are hypotheses to re-baseline after Sprint 1.
@@ -33,7 +33,7 @@ These are proposed defaults so engineering can start; each is cheap to revisit u
 | 5 | Privacy | **Ephemeral by default**; explicit "Save session" persists to SQLite. | Pilot feedback |
 | 6 | Business model | Out of scope for engineering; keep packages licence-clean so an open core is possible. | — |
 | 7 | Auth paths to test first | Cookie session login, then OAuth redirect (PKCE), then popup SSO. | Sprint 3 |
-| 8 | Naming | Keep `tracelens` as internal codename; package scope `@tracelens/*` is unpublished until name is cleared. | Before first public build |
+| 8 | Naming | Product name **TraceThrough** (`tracethrough`); renamed from the codename TraceLens because `tracelens` is taken on npm. `tracethrough` and the GitHub name were free on 3 Nov 2026; the `@tracethrough` npm scope and a trademark search are still to confirm. | Before first public build |
 
 ---
 
@@ -42,20 +42,20 @@ These are proposed defaults so engineering can start; each is cheap to revisit u
 pnpm workspace monorepo, TypeScript strict, ESM.
 
 ```
-tracelens/
+tracethrough/
 ├─ packages/
-│  ├─ core/        @tracelens/core     Event schema (Zod), redaction engine, ring buffer,
+│  ├─ core/        @tracethrough/core     Event schema (Zod), redaction engine, ring buffer,
 │  │                                   HAR/JSON export. Zero runtime deps beyond zod.
 │  │                                   Shared by desktop, capture and (later) SDK.
-│  ├─ capture/     @tracelens/capture  Playwright session engine: launch isolated context,
+│  ├─ capture/     @tracethrough/capture  Playwright session engine: launch isolated context,
 │  │                                   lifecycle → normalized events, bounded body reads,
 │  │                                   navigation grouping. Emits redacted events only.
-│  └─ fixtures/    @tracelens/fixtures Deterministic HTTP fixture server for tests
+│  └─ fixtures/    @tracethrough/fixtures Deterministic HTTP fixture server for tests
 │                                      (2xx/4xx/5xx, redirects, delay, large/binary body,
 │                                      auth, cache, service worker, CORS failure).
 ├─ apps/
 │  └─ desktop/     Electron main + React renderer           (Sprint 2+)
-├─ sdk/            @tracelens/node, @tracelens/next         (Phase 2)
+├─ sdk/            @tracethrough/node, @tracethrough/next         (Phase 2)
 ├─ scripts/        spike CLI, perf fixtures
 └─ docs/           RFCs, ADRs, support matrix
 ```
@@ -85,7 +85,7 @@ Goal: prove the hard parts headless-first, then headed, without UI polish.
 
 | Backlog | Work item | Done when |
 |---|---|---|
-| B1 | Event schema + redaction policy in `@tracelens/core` | Zod schema; header/query/JSON-path/form redaction; unit tests incl. US-04 |
+| B1 | Event schema + redaction policy in `@tracethrough/core` | Zod schema; header/query/JSON-path/form redaction; unit tests incl. US-04 |
 | B3 | Capture start/finish/failure lifecycle + redirect chains | Fixture tests: 200, 404, 500, 302→200 chain, DNS failure, abort |
 | B4 | Bounded text body previews | JSON/text decoded; >cap truncated with flag; binary → metadata + reason |
 | B5 | Normalization + ring buffer | Cap enforced; dropped count exposed |
@@ -118,7 +118,7 @@ Goal: prove the hard parts headless-first, then headed, without UI polish.
 - Navigation grouping + basic waterfall (UI-04, P1 — stretch).
 - Copy as cURL with secrets stripped (DX-01, P1 — stretch).
 - Windows (NSIS/MSIX) + macOS (dmg, notarized) packages; Chromium download on first run with progress.
-- First-run docs: "What TraceLens can and cannot see" trust-boundary page.
+- First-run docs: "What TraceThrough can and cannot see" trust-boundary page.
 - Stability soak: 30 min / 5,000 events, no crash; memory budget recorded.
 
 **Exit gate:** 10–15 pilot developers independently reproduce and export an authorized live-site issue. ≥7/10 complete scripted task unaided.
@@ -127,8 +127,8 @@ Goal: prove the hard parts headless-first, then headed, without UI polish.
 
 Starts with an **RFC (B12) written during Sprint 4**, covering:
 - Local collector: loopback-only HTTP/WebSocket endpoint in the desktop app, session-scoped token.
-- `@tracelens/node`: OTel-based undici/fetch instrumentation; initiated/completed/error phases with stable id + traceparent.
-- `@tracelens/next`: `instrumentation.ts` registration; route attribution where available, not guaranteed.
+- `@tracethrough/node`: OTel-based undici/fetch instrumentation; initiated/completed/error phases with stable id + traceparent.
+- `@tracethrough/next`: `instrumentation.ts` registration; route attribution where available, not guaranteed.
 - Correlation (COR-01): link only on matching W3C trace context; otherwise show "unlinked", never guess.
 - Production guards: metadata-only default, target allowlist, server-enforced short-lived debug grants, circuit breaker, async bounded exporter, kill switch.
 - Support matrix: Node 20/22 LTS × Next.js 14/15/16 × node runtime (Edge runtime explicitly unsupported initially).
@@ -185,12 +185,12 @@ CI: GitHub Actions ([ci.yml](.github/workflows/ci.yml)) on Windows, macOS and Ub
 | Navigation-grouped waterfall (UI-04), copy as cURL (DX-01) | ⏭ Sprint 4 stretch |
 | Windows installer (electron-builder NSIS, per-user, x64) via `pnpm package:win`; reuses the verified local Electron (`electronDist`) instead of re-downloading; Playwright unpacked from asar; only `playwright` shipped as a runtime dependency | ✅ |
 | First-run browser check: detects bundled Chromium / Chrome / Edge from standard install paths; Home disables Start with an explanation when none is found; launch tries detected browsers first | ✅ |
-| E2E suite can target the packaged executable (`TRACELENS_E2E_EXECUTABLE`) | ✅ |
+| E2E suite can target the packaged executable (`TRACETHROUGH_E2E_EXECUTABLE`) | ✅ |
 | Code signing (Windows Authenticode / macOS notarization) — needs a certificate; until then SmartScreen warns | ⏭ needs cert |
 | macOS dmg / Linux AppImage builds (configured; must be built on those OSes, ideally in CI) | ⏭ |
 | Auto-update channel | ⏭ |
 | Designed app icon (current one is generated by `scripts/make-icon.ts`) | ⏭ |
-| Renderer bundle is ~840 KB unminified, mostly Zod pulled in via `@tracelens/core`; split a schema-free entry for the renderer | ⏭ |
+| Renderer bundle is ~840 KB unminified, mostly Zod pulled in via `@tracethrough/core`; split a schema-free entry for the renderer | ⏭ |
 | Stop responds in ~30 ms: capture announces stop after closing the context and lets the browser process exit in the background (Chrome took 0.3–3.5 s to exit on Windows) | ✅ |
 
 ## 8. Phase 2 progress (App Connect)
@@ -200,15 +200,15 @@ Design: [docs/rfc-001-app-connect.md](docs/rfc-001-app-connect.md).
 | Item | Status |
 |---|---|
 | RFC: trace propagation, linking rule, transport, safety defaults | ✅ |
-| `@tracelens/collector`: loopback-only, bearer token (timing-safe), rejects `Origin` and foreign `Host` (DNS rebinding), 1 MB / 500-event caps, Zod-validated, kill-switch reply | ✅ |
-| `@tracelens/node`: `fetch`/undici via `diagnostics_channel` (no monkey-patching); incoming `traceparent` via `http.server.request.start` + AsyncLocalStorage; metadata only | ✅ Node 20 and 22 |
-| SDK safety: off without env, loopback-only collector, production opt-in, `TRACELENS_DISABLED`, bounded coalescing queue, circuit breaker, self-disable on 401/403 or kill switch, never throws into host app | ✅ |
+| `@tracethrough/collector`: loopback-only, bearer token (timing-safe), rejects `Origin` and foreign `Host` (DNS rebinding), 1 MB / 500-event caps, Zod-validated, kill-switch reply | ✅ |
+| `@tracethrough/node`: `fetch`/undici via `diagnostics_channel` (no monkey-patching); incoming `traceparent` via `http.server.request.start` + AsyncLocalStorage; metadata only | ✅ Node 20 and 22 |
+| SDK safety: off without env, loopback-only collector, production opt-in, `TRACETHROUGH_DISABLED`, bounded coalescing queue, circuit breaker, self-disable on 401/403 or kill switch, never throws into host app | ✅ |
 | Capture: `traceparent` injected only for the connected origin (Playwright routing); browser event records the same trace id | ✅ |
 | Server events re-redacted on ingest, `source` forced, ids namespaced so they cannot overwrite browser events | ✅ |
 | Desktop: collector for app lifetime, token persisted in userData with Regenerate, Connect App panel with copyable env/snippets, "This is my app" option | ✅ |
 | Linking UI (COR-01): browser request → "Server calls"; server call → "Triggered by" + "Handled request"; explicit "Not linked" state | ✅ |
 | E2E: real app + real browser + sample Node app with SDK + upstream; asserts linking both ways and that the API key never renders | ✅ |
-| `@tracelens/next` wrapper, incl. fallback to Next 16's global request store (finds `Symbol.for("@next/work-unit-async-storage@*")`, no Next imports) that takes precedence over the SDK's own context | ✅ |
+| `@tracethrough/next` wrapper, incl. fallback to Next 16's global request store (finds `Symbol.for("@next/work-unit-async-storage@*")`, no Next imports) that takes precedence over the SDK's own context | ✅ |
 | Sample Next.js app (SSR page fetch + route handler) and support matrix: Next 16.4 dev/start fully linked; Next 15.5 dev/start linked except the first render of a page after compile/boot (see README) — **Phase 2 exit gate met** | ✅ |
 | E2E against real `next dev` (`pnpm test:e2e:next`) incl. React Strict Mode double-fetch, each linked to its own upstream call | ✅ |
 | Relative imports use `.ts` extensions (`allowImportingTsExtensions`) so bundlers such as Turbopack can compile the packages from source; a publish build will need `rewriteRelativeImportExtensions` | ✅ |
@@ -220,9 +220,9 @@ Design: [docs/rfc-001-app-connect.md](docs/rfc-001-app-connect.md).
 ## 9. Phase 0 next steps (Day 1)
 
 1. ✅ Monorepo scaffold, TypeScript, Vitest.
-2. ✅ `@tracelens/core`: event schema, redaction, ring buffer.
-3. ✅ `@tracelens/fixtures`: fixture server.
-4. ✅ `@tracelens/capture`: Playwright session engine + integration tests.
+2. ✅ `@tracethrough/core`: event schema, redaction, ring buffer.
+3. ✅ `@tracethrough/fixtures`: fixture server.
+4. ✅ `@tracethrough/capture`: Playwright session engine + integration tests.
 5. ✅ `pnpm spike <url>` headed CLI.
 6. ⏭ Electron-hosts-Playwright spike on Windows.
 7. ⏭ Try the spike on 3 authorized live sites; log gaps in `docs/spike-findings.md`.

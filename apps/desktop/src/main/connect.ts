@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { generateToken, startCollector, type Collector } from '@tracelens/collector';
-import type { ServerEventInput } from '@tracelens/core';
+import { generateToken, startCollector, type Collector } from '@tracethrough/collector';
+import type { ServerEventInput } from '@tracethrough/core';
 import type { ConnectInfo } from '../shared/api';
 
 interface ConnectOptions {

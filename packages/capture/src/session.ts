@@ -20,7 +20,7 @@ import {
   type ServerEventInput,
   type Timing,
   type TraceContext,
-} from '@tracelens/core';
+} from '@tracethrough/core';
 import { findBrowsers, type BrowserChannel } from './browsers.ts';
 
 export interface CaptureOptions {

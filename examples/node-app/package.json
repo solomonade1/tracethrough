@@ -1,5 +1,5 @@
 {
-  "name": "@tracelens/example-node-app",
+  "name": "@tracethrough/example-node-app",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,7 +7,7 @@
     "start": "tsx server.ts"
   },
   "dependencies": {
-    "@tracelens/node": "workspace:*"
+    "@tracethrough/node": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.23.15"

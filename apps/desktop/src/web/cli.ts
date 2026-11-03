@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import type { BrowserChannel } from '@tracelens/capture';
+import type { BrowserChannel } from '@tracethrough/capture';
 import { desktopUserDataDir, startWebServer } from './server';
 
 // Local web mode: `pnpm web [--port <n>] [--no-open]`. Uses the same env overrides as the desktop app.
@@ -28,14 +28,14 @@ const server = await startWebServer({
   staticDir,
   appVersion: pkg.version,
   collectorTokenFile: join(desktopUserDataDir(pkg.productName), 'collector.json'),
-  port: values.port ? Number(values.port) : env.TRACELENS_WEB_PORT ? Number(env.TRACELENS_WEB_PORT) : undefined,
-  collectorPort: env.TRACELENS_COLLECTOR_PORT ? Number(env.TRACELENS_COLLECTOR_PORT) : undefined,
-  collectorToken: env.TRACELENS_COLLECTOR_TOKEN || undefined,
-  headless: env.TRACELENS_HEADLESS_CAPTURE === '1',
-  channel: env.TRACELENS_BROWSER_CHANNEL as BrowserChannel | undefined,
+  port: values.port ? Number(values.port) : env.TRACETHROUGH_WEB_PORT ? Number(env.TRACETHROUGH_WEB_PORT) : undefined,
+  collectorPort: env.TRACETHROUGH_COLLECTOR_PORT ? Number(env.TRACETHROUGH_COLLECTOR_PORT) : undefined,
+  collectorToken: env.TRACETHROUGH_COLLECTOR_TOKEN || undefined,
+  headless: env.TRACETHROUGH_HEADLESS_CAPTURE === '1',
+  channel: env.TRACETHROUGH_BROWSER_CHANNEL as BrowserChannel | undefined,
 });
 
-console.log(`TraceLens ${pkg.version} (web mode) is running.\n\n  Open: ${server.launchUrl}\n\nThe link contains an access token for this run only. Press Ctrl+C to stop.`);
+console.log(`TraceThrough ${pkg.version} (web mode) is running.\n\n  Open: ${server.launchUrl}\n\nThe link contains an access token for this run only. Press Ctrl+C to stop.`);
 
 if (!values['no-open']) {
   // `start` treats its first quoted argument as a window title, hence the empty one.

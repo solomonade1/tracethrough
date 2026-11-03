@@ -1,13 +1,13 @@
 /**
  * Phase 0 spike: `pnpm spike <url> [--channel chrome|msedge|chromium] [--headless] [--for <seconds>]`
  * Opens an isolated browser, streams redacted exchanges to the terminal, and on exit writes the
- * sanitized session to .tracelens/session-<id>.json.
+ * sanitized session to .tracethrough/session-<id>.json.
  */
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import type { NetworkEvent } from '@tracelens/core';
-import { CaptureSession, type BrowserChannel } from '@tracelens/capture';
+import type { NetworkEvent } from '@tracethrough/core';
+import { CaptureSession, type BrowserChannel } from '@tracethrough/capture';
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
@@ -59,7 +59,7 @@ async function finish() {
   await session.stop();
   const events = session.buffer.all();
   const failed = events.filter((e) => e.state === 'failed' || (e.status ?? 0) >= 400).length;
-  const dir = '.tracelens';
+  const dir = '.tracethrough';
   await mkdir(dir, { recursive: true });
   const file = join(dir, `session-${session.id}.json`);
   await writeFile(file, JSON.stringify({ sessionId: session.id, dropped: session.buffer.dropped, events }, null, 2));

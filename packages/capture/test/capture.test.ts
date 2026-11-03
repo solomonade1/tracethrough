@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { MASK, NetworkEvent } from '@tracelens/core';
-import { CANARY, startFixtureServer, type FixtureServer } from '@tracelens/fixtures';
+import { MASK, NetworkEvent } from '@tracethrough/core';
+import { CANARY, startFixtureServer, type FixtureServer } from '@tracethrough/fixtures';
 import { CaptureSession, InvalidTargetUrlError, findBrowsers, validateTargetUrl, type BrowserChannel } from '../src/index.ts';
 
-const channel = process.env.TRACELENS_BROWSER_CHANNEL as BrowserChannel | undefined;
+const channel = process.env.TRACETHROUGH_BROWSER_CHANNEL as BrowserChannel | undefined;
 const PREVIEW_BYTES = 64 * 1024;
 
 function waitForEvent(session: CaptureSession, pred: (e: NetworkEvent) => boolean, timeoutMs = 10_000) {
@@ -126,8 +126,8 @@ describe('CaptureSession against fixture site', () => {
   });
 
   it('captures DNS failures with a readable reason (ERR-01)', async () => {
-    await session.page.evaluate(() => fetch('http://tracelens-does-not-exist.invalid/x').catch(() => {}));
-    const failed = await waitForEvent(session, (e) => e.domain === 'tracelens-does-not-exist.invalid' && e.state !== 'pending');
+    await session.page.evaluate(() => fetch('http://tracethrough-does-not-exist.invalid/x').catch(() => {}));
+    const failed = await waitForEvent(session, (e) => e.domain === 'tracethrough-does-not-exist.invalid' && e.state !== 'pending');
     expect(failed.state).toBe('failed');
     expect(failed.error?.code).toMatch(/ERR_/);
   });

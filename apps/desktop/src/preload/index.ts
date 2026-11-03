@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import { IPC, type EventBatch, type SessionStatus, type TraceLensApi } from '../shared/api';
+import { IPC, type EventBatch, type SessionStatus, type TraceThroughApi } from '../shared/api';
 
 function subscribe<T>(channel: string, listener: (payload: T) => void): () => void {
   const handler = (_: IpcRendererEvent, payload: T) => listener(payload);
@@ -7,7 +7,7 @@ function subscribe<T>(channel: string, listener: (payload: T) => void): () => vo
   return () => ipcRenderer.off(channel, handler);
 }
 
-const api: TraceLensApi = {
+const api: TraceThroughApi = {
   startSession: (url, options) => ipcRenderer.invoke(IPC.start, url, options),
   stopSession: () => ipcRenderer.invoke(IPC.stop),
   clearSession: () => ipcRenderer.invoke(IPC.clear),
@@ -19,4 +19,4 @@ const api: TraceLensApi = {
   onStatus: (listener) => subscribe<SessionStatus>(IPC.status, listener),
 };
 
-contextBridge.exposeInMainWorld('tracelens', api);
+contextBridge.exposeInMainWorld('tracethrough', api);

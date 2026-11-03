@@ -1,6 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { NetworkEvent } from '@tracelens/core';
+import type { NetworkEvent } from '@tracethrough/core';
 import { formatBytes, formatMs, nameOf, statusLabel, statusTone } from '../format';
 import { useInspector } from '../store';
 

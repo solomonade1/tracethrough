@@ -4,7 +4,7 @@ Status: Accepted for implementation · Date: 3 Nov 2026 · PRD refs: §5 Mode B,
 
 ## Goal
 
-When a developer **owns** the app being inspected, show the HTTP calls its Node server makes (SSR data fetches, API route upstream calls) as **Server** events in the same TraceLens session, linked to the browser request that caused them — and never claim a link that was not proven.
+When a developer **owns** the app being inspected, show the HTTP calls its Node server makes (SSR data fetches, API route upstream calls) as **Server** events in the same TraceThrough session, linked to the browser request that caused them — and never claim a link that was not proven.
 
 ## Non-goals (v1)
 
@@ -17,13 +17,13 @@ When a developer **owns** the app being inspected, show the HTTP calls its Node 
 ## Design
 
 ```
- TraceLens desktop ─────────────────────────────────────────────┐
+ TraceThrough desktop ─────────────────────────────────────────────┐
  │  CaptureSession (browser)          Collector (127.0.0.1)     │
  │   │ adds `traceparent` to requests   ▲ POST /v1/events        │
  │   │ for the *connected origin* only  │ Bearer token           │
  └───┼──────────────────────────────────┼────────────────────────┘
      ▼                                  │
-  Your app (Node / Next.js) ── @tracelens/node ──┘
+  Your app (Node / Next.js) ── @tracethrough/node ──┘
      • http.server.request.start → read traceparent → AsyncLocalStorage
      • undici:request:{create,headers,trailers,error} → outgoing fetch events
 ```
@@ -42,7 +42,7 @@ When a developer **owns** the app being inspected, show the HTTP calls its Node 
 - Exporter uses `node:http` (not fetch) so it never observes itself. Bounded queue (default 1,000, coalesced by id, oldest dropped and counted), 250 ms flush, timers `unref()`ed, all errors swallowed.
 - Circuit breaker: 3 consecutive failures → pause 30 s. `401/403` from the collector → SDK disables itself (token rotated / app closed). Collector can answer `{ enabled: false }` as a kill switch without redeploying.
 - Redaction runs in the SDK **and again** in the collector with the session's policy (never trust the sender).
-- Off unless `TRACELENS_COLLECTOR_URL` + `TRACELENS_TOKEN` are set. Refuses non-loopback collector URLs. Refuses `NODE_ENV=production` unless `TRACELENS_ALLOW_PRODUCTION=1`. `TRACELENS_DISABLED=1` hard-off.
+- Off unless `TRACETHROUGH_COLLECTOR_URL` + `TRACETHROUGH_TOKEN` are set. Refuses non-loopback collector URLs. Refuses `NODE_ENV=production` unless `TRACETHROUGH_ALLOW_PRODUCTION=1`. `TRACETHROUGH_DISABLED=1` hard-off.
 
 ### Collector
 - Binds `127.0.0.1` only (default port 47811, falls back to random). Requires `Authorization: Bearer <token>`; token persisted per install, regenerable.
@@ -50,9 +50,9 @@ When a developer **owns** the app being inspected, show the HTTP calls its Node 
 - Events received with no recording session are dropped and counted.
 
 ## Next.js
-`@tracelens/next` exports `register()` for `instrumentation.ts`; it no-ops unless `NEXT_RUNTIME === 'nodejs'`.
+`@tracethrough/next` exports `register()` for `instrumentation.ts`; it no-ops unless `NEXT_RUNTIME === 'nodejs'`.
 
-**Finding (validated 3 Nov 2026):** Next can run work outside the original request's async context. In `next dev` the first render after a compile, and on Next 15 also the first render of a page after boot, saw no SDK context. Next keeps its own request store (`workUnitAsyncStorage`, type `request`, with the incoming headers and URL) around every render and route handler. Next 16 registers it globally as `Symbol.for('@next/work-unit-async-storage@<version>')`, so `@tracelens/next` passes a `requestContext` hook that reads it by symbol prefix without importing Next internals. **When Next's store is present it takes precedence**, even when it says "no trace": it is set by Next precisely around the request being rendered, whereas the SDK's own context could in principle belong to another request if Next resumes queued work from a different continuation, which would be a false link. Next 15 keeps the store module-private, so its first-render gap remains and shows as "Not linked".
+**Finding (validated 3 Nov 2026):** Next can run work outside the original request's async context. In `next dev` the first render after a compile, and on Next 15 also the first render of a page after boot, saw no SDK context. Next keeps its own request store (`workUnitAsyncStorage`, type `request`, with the incoming headers and URL) around every render and route handler. Next 16 registers it globally as `Symbol.for('@next/work-unit-async-storage@<version>')`, so `@tracethrough/next` passes a `requestContext` hook that reads it by symbol prefix without importing Next internals. **When Next's store is present it takes precedence**, even when it says "no trace": it is set by Next precisely around the request being rendered, whereas the SDK's own context could in principle belong to another request if Next resumes queued work from a different continuation, which would be a false link. Next 15 keeps the store module-private, so its first-render gap remains and shows as "Not linked".
 
 Support matrix: see the README.
 

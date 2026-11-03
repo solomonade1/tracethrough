@@ -61,19 +61,19 @@ jobs:
         run: xvfb-run --auto-servernum pnpm test:e2e
 
       - name: Build web mode UI
-        run: pnpm --filter @tracelens/desktop build:web
+        run: pnpm --filter @tracethrough/desktop build:web
 
       # Proves the installer config still produces a working app; the e2e suite runs against the packaged exe.
       - name: Package (Windows, unsigned)
         if: runner.os == 'Windows'
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: pnpm --filter @tracelens/desktop dist:dir
+        run: pnpm --filter @tracethrough/desktop dist:dir
 
       - name: End-to-end (packaged Windows app)
         if: runner.os == 'Windows'
         env:
-          TRACELENS_E2E_EXECUTABLE: apps/desktop/release/win-unpacked/TraceLens.exe
+          TRACETHROUGH_E2E_EXECUTABLE: apps/desktop/release/win-unpacked/TraceThrough.exe
         run: pnpm exec vitest run --config apps/desktop/vitest.config.ts
 
   next-e2e:

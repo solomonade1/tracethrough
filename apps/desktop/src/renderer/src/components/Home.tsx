@@ -13,14 +13,14 @@ export function Home() {
   const noBrowser = env !== undefined && env.browsers.length === 0;
 
   useEffect(() => {
-    void window.tracelens.getEnvironment().then(setEnv);
+    void window.tracethrough.getEnvironment().then(setEnv);
   }, []);
 
   async function start(e: FormEvent) {
     e.preventDefault();
     setError(undefined);
     useInspector.getState().reset();
-    const result = await window.tracelens.startSession(url.trim(), { connect });
+    const result = await window.tracethrough.startSession(url.trim(), { connect });
     if (!result.ok) setError(result.error);
   }
 
@@ -28,7 +28,7 @@ export function Home() {
     <main className="home">
       <div className="home-brand">
         <span className="logo" aria-hidden>◎</span>
-        <h1>TraceLens</h1>
+        <h1>TraceThrough</h1>
         {env && <span className="muted small">v{env.version}</span>}
       </div>
 
@@ -72,7 +72,7 @@ export function Home() {
         )}
         {noBrowser ? (
           <p role="alert" className="error">
-            TraceLens needs Google Chrome or Microsoft Edge to open sites. Install one, then restart TraceLens.
+            TraceThrough needs Google Chrome or Microsoft Edge to open sites. Install one, then restart TraceThrough.
           </p>
         ) : (
           env && (

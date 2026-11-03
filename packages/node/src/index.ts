@@ -11,15 +11,15 @@ import {
   unavailableBody,
   type RedactionPolicy,
   type ServerEventInput,
-} from '@tracelens/core';
+} from '@tracethrough/core';
 import { Exporter } from './exporter.ts';
 
-export interface TraceLensNodeOptions {
-  /** Defaults to TRACELENS_COLLECTOR_URL. Must be a loopback http URL in v1. */
+export interface TraceThroughNodeOptions {
+  /** Defaults to TRACETHROUGH_COLLECTOR_URL. Must be a loopback http URL in v1. */
   collectorUrl?: string;
-  /** Defaults to TRACELENS_TOKEN. */
+  /** Defaults to TRACETHROUGH_TOKEN. */
   token?: string;
-  /** Allow running when NODE_ENV=production (or set TRACELENS_ALLOW_PRODUCTION=1). */
+  /** Allow running when NODE_ENV=production (or set TRACETHROUGH_ALLOW_PRODUCTION=1). */
   allowProduction?: boolean;
   /** Only record calls to these hosts (exact hostname or pattern). Default: all hosts. */
   allowTargets?: readonly (string | RegExp)[];
@@ -43,7 +43,7 @@ export interface FrameworkRequestContext {
   path?: string;
 }
 
-export interface TraceLensHandle {
+export interface TraceThroughHandle {
   readonly enabled: boolean;
   /** Why the SDK is (or became) inactive. */
   readonly disabledReason: string | undefined;
@@ -78,7 +78,7 @@ interface UndiciResponse {
 }
 
 const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
-const REGISTERED = Symbol.for('tracelens.node.handle');
+const REGISTERED = Symbol.for('tracethrough.node.handle');
 
 function pairsToRecord(pairs: readonly (string | Buffer)[]): Record<string, string> {
   const out: Record<string, string> = {};
@@ -100,16 +100,16 @@ function requestHeaders(raw: string[] | string): Record<string, string> {
   );
 }
 
-function disabledHandle(reason: string): TraceLensHandle {
+function disabledHandle(reason: string): TraceThroughHandle {
   return { enabled: false, disabledReason: reason, dropped: 0, flush: async () => {}, shutdown: async () => {} };
 }
 
-function checkConfig(opts: TraceLensNodeOptions): { url: string; token: string } | string {
+function checkConfig(opts: TraceThroughNodeOptions): { url: string; token: string } | string {
   const env = process.env;
-  if (env.TRACELENS_DISABLED === '1') return 'TRACELENS_DISABLED=1';
-  const url = opts.collectorUrl ?? env.TRACELENS_COLLECTOR_URL;
-  const token = opts.token ?? env.TRACELENS_TOKEN;
-  if (!url || !token) return 'TRACELENS_COLLECTOR_URL and TRACELENS_TOKEN are not set';
+  if (env.TRACETHROUGH_DISABLED === '1') return 'TRACETHROUGH_DISABLED=1';
+  const url = opts.collectorUrl ?? env.TRACETHROUGH_COLLECTOR_URL;
+  const token = opts.token ?? env.TRACETHROUGH_TOKEN;
+  if (!url || !token) return 'TRACETHROUGH_COLLECTOR_URL and TRACETHROUGH_TOKEN are not set';
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -119,8 +119,8 @@ function checkConfig(opts: TraceLensNodeOptions): { url: string; token: string }
   if (parsed.protocol !== 'http:' || !LOOPBACK.has(parsed.hostname)) {
     return 'collector URL must be a loopback http:// address (remote collection is not supported)';
   }
-  if (env.NODE_ENV === 'production' && !opts.allowProduction && env.TRACELENS_ALLOW_PRODUCTION !== '1') {
-    return 'NODE_ENV=production (set TRACELENS_ALLOW_PRODUCTION=1 to opt in)';
+  if (env.NODE_ENV === 'production' && !opts.allowProduction && env.TRACETHROUGH_ALLOW_PRODUCTION !== '1') {
+    return 'NODE_ENV=production (set TRACETHROUGH_ALLOW_PRODUCTION=1 to opt in)';
   }
   return { url, token };
 }
@@ -129,14 +129,14 @@ function checkConfig(opts: TraceLensNodeOptions): { url: string; token: string }
  * Starts App Connect instrumentation for this process. Idempotent: later calls return the
  * first handle. Never throws and never blocks the application's own requests.
  */
-export function register(opts: TraceLensNodeOptions = {}): TraceLensHandle {
-  const g = globalThis as { [REGISTERED]?: TraceLensHandle };
+export function register(opts: TraceThroughNodeOptions = {}): TraceThroughHandle {
+  const g = globalThis as { [REGISTERED]?: TraceThroughHandle };
   if (g[REGISTERED]) return g[REGISTERED];
 
   const logger = opts.logger ?? console;
   const config = checkConfig(opts);
   if (typeof config === 'string') {
-    if (process.env.TRACELENS_COLLECTOR_URL || opts.collectorUrl) logger.warn(`[tracelens] App Connect disabled: ${config}`);
+    if (process.env.TRACETHROUGH_COLLECTOR_URL || opts.collectorUrl) logger.warn(`[tracethrough] App Connect disabled: ${config}`);
     return disabledHandle(config);
   }
 
@@ -153,7 +153,7 @@ export function register(opts: TraceLensNodeOptions = {}): TraceLensHandle {
     onDisable: (reason) => {
       disabledReason = reason;
       unsubscribe();
-      logger.warn(`[tracelens] App Connect stopped: ${reason}`);
+      logger.warn(`[tracethrough] App Connect stopped: ${reason}`);
     },
   });
 
@@ -296,7 +296,7 @@ export function register(opts: TraceLensNodeOptions = {}): TraceLensHandle {
     for (const [name, fn] of guarded) diagnostics.unsubscribe(name, fn);
   }
 
-  const handle: TraceLensHandle = {
+  const handle: TraceThroughHandle = {
     get enabled() {
       return disabledReason === undefined;
     },

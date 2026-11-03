@@ -8,16 +8,16 @@ importers:
 
   .:
     devDependencies:
-      '@tracelens/capture':
+      '@tracethrough/capture':
         specifier: workspace:*
         version: link:packages/capture
-      '@tracelens/collector':
+      '@tracethrough/collector':
         specifier: workspace:*
         version: link:packages/collector
-      '@tracelens/core':
+      '@tracethrough/core':
         specifier: workspace:*
         version: link:packages/core
-      '@tracelens/fixtures':
+      '@tracethrough/fixtures':
         specifier: workspace:*
         version: link:packages/fixtures
       '@types/node':
@@ -48,16 +48,16 @@ importers:
       '@tanstack/react-virtual':
         specifier: ^3.14.25
         version: 3.14.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@tracelens/capture':
+      '@tracethrough/capture':
         specifier: workspace:*
         version: link:../../packages/capture
-      '@tracelens/collector':
+      '@tracethrough/collector':
         specifier: workspace:*
         version: link:../../packages/collector
-      '@tracelens/core':
+      '@tracethrough/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@tracelens/fixtures':
+      '@tracethrough/fixtures':
         specifier: workspace:*
         version: link:../../packages/fixtures
       '@types/react':
@@ -96,7 +96,7 @@ importers:
 
   examples/next-app:
     dependencies:
-      '@tracelens/next':
+      '@tracethrough/next':
         specifier: workspace:*
         version: link:../../packages/next
       next:
@@ -124,7 +124,7 @@ importers:
 
   examples/node-app:
     dependencies:
-      '@tracelens/node':
+      '@tracethrough/node':
         specifier: workspace:*
         version: link:../../packages/node
     devDependencies:
@@ -134,20 +134,20 @@ importers:
 
   packages/capture:
     dependencies:
-      '@tracelens/core':
+      '@tracethrough/core':
         specifier: workspace:*
         version: link:../core
       playwright:
         specifier: ^1.64.1
         version: 1.64.1
     devDependencies:
-      '@tracelens/fixtures':
+      '@tracethrough/fixtures':
         specifier: workspace:*
         version: link:../fixtures
 
   packages/collector:
     dependencies:
-      '@tracelens/core':
+      '@tracethrough/core':
         specifier: workspace:*
         version: link:../core
 
@@ -161,30 +161,30 @@ importers:
 
   packages/next:
     dependencies:
-      '@tracelens/node':
+      '@tracethrough/node':
         specifier: workspace:*
         version: link:../node
     devDependencies:
-      '@tracelens/collector':
+      '@tracethrough/collector':
         specifier: workspace:*
         version: link:../collector
-      '@tracelens/core':
+      '@tracethrough/core':
         specifier: workspace:*
         version: link:../core
-      '@tracelens/fixtures':
+      '@tracethrough/fixtures':
         specifier: workspace:*
         version: link:../fixtures
 
   packages/node:
     dependencies:
-      '@tracelens/core':
+      '@tracethrough/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
-      '@tracelens/collector':
+      '@tracethrough/collector':
         specifier: workspace:*
         version: link:../collector
-      '@tracelens/fixtures':
+      '@tracethrough/fixtures':
         specifier: workspace:*
         version: link:../fixtures
 

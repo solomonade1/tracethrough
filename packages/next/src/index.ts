@@ -1,11 +1,11 @@
 import {
   register as registerNode,
   type FrameworkRequestContext,
-  type TraceLensHandle,
-  type TraceLensNodeOptions,
-} from '@tracelens/node';
+  type TraceThroughHandle,
+  type TraceThroughNodeOptions,
+} from '@tracethrough/node';
 
-export type { TraceLensHandle, TraceLensNodeOptions };
+export type { TraceThroughHandle, TraceThroughNodeOptions };
 
 /** Minimal view of Next.js's internal request store (`workUnitAsyncStorage`, type "request"). */
 interface NextRequestStore {
@@ -55,13 +55,13 @@ export function nextRequestContext(): FrameworkRequestContext | undefined {
  * ```ts
  * export async function register() {
  *   if (process.env.NEXT_RUNTIME === 'nodejs') {
- *     const { register } = await import('@tracelens/next');
+ *     const { register } = await import('@tracethrough/next');
  *     register();
  *   }
  * }
  * ```
  */
-export function register(opts?: TraceLensNodeOptions): TraceLensHandle | undefined {
+export function register(opts?: TraceThroughNodeOptions): TraceThroughHandle | undefined {
   if (process.env.NEXT_RUNTIME && process.env.NEXT_RUNTIME !== 'nodejs') return undefined;
   return registerNode({ requestContext: nextRequestContext, ...opts });
 }

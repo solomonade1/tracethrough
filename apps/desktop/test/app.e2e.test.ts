@@ -4,10 +4,10 @@ import { join } from 'node:path';
 import type { ElectronApplication, Page } from 'playwright';
 import { expect } from '@playwright/test';
 import { afterAll, beforeAll, describe, it } from 'vitest';
-import { CANARY, startFixtureServer, type FixtureServer } from '@tracelens/fixtures';
+import { CANARY, startFixtureServer, type FixtureServer } from '@tracethrough/fixtures';
 import { launchApp } from './launch';
 
-const screenshotDir = process.env.TRACELENS_E2E_SCREENSHOT_DIR;
+const screenshotDir = process.env.TRACETHROUGH_E2E_SCREENSHOT_DIR;
 
 let app: ElectronApplication;
 let win: Page;
@@ -22,7 +22,7 @@ async function snap(name: string) {
 }
 
 beforeAll(async () => {
-  tmp = await mkdtemp(join(tmpdir(), 'tracelens-e2e-'));
+  tmp = await mkdtemp(join(tmpdir(), 'tracethrough-e2e-'));
   server = await startFixtureServer();
   ({ app, win } = await launchApp());
   await win.setViewportSize({ width: 1400, height: 860 }).catch(() => {});
@@ -34,7 +34,7 @@ afterAll(async () => {
   if (tmp) await rm(tmp, { recursive: true, force: true });
 });
 
-describe('TraceLens desktop', () => {
+describe('TraceThrough desktop', () => {
   it('rejects unsupported URL schemes on the home screen (URL-01)', async () => {
     await expect(win.getByRole('heading', { name: 'Inspect URL' })).toBeVisible();
     await win.locator('#target-url').fill('file:///etc/passwd');

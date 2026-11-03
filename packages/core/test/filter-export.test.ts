@@ -85,7 +85,7 @@ describe('toHar', () => {
     const c = ev({ id: 'c', method: 'POST', state: 'failed', status: undefined, error: { code: 'net::ERR_FAILED', message: 'x' } });
 
     const har = toHar([a, b, c], '1.0.0');
-    expect(har.log).toMatchObject({ version: '1.2', creator: { name: 'TraceLens', version: '1.0.0' }, comment: EXPORT_WARNING });
+    expect(har.log).toMatchObject({ version: '1.2', creator: { name: 'TraceThrough', version: '1.0.0' }, comment: EXPORT_WARNING });
     const [ha, hb, hc] = har.log.entries;
 
     expect(ha!.response).toMatchObject({ status: 302, redirectURL: b.urlSanitized });
@@ -103,6 +103,6 @@ describe('toHar', () => {
   });
 
   it('wraps native exports with format metadata', () => {
-    expect(toSessionExport('s1', [ev()], 3)).toMatchObject({ format: 'tracelens-session', version: 1, sessionId: 's1', droppedEvents: 3 });
+    expect(toSessionExport('s1', [ev()], 3)).toMatchObject({ format: 'tracethrough-session', version: 1, sessionId: 's1', droppedEvents: 3 });
   });
 });

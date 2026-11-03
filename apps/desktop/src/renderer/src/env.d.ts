@@ -1,7 +1,7 @@
-import type { TraceLensApi } from '../../shared/api';
+import type { TraceThroughApi } from '../../shared/api';
 
 declare global {
   interface Window {
-    tracelens: TraceLensApi;
+    tracethrough: TraceThroughApi;
   }
 }

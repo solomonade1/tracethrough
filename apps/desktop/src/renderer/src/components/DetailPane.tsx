@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { MASK, type BodyPreview, type NetworkEvent } from '@tracelens/core';
+import { MASK, type BodyPreview, type NetworkEvent } from '@tracethrough/core';
 import { formatBytes, formatMs, statusTone, unavailableMessage } from '../format';
 import { useInspector, type DetailTab } from '../store';
 

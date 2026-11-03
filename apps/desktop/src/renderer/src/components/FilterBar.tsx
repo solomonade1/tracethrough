@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { EventFilter, EventSource, NetworkEvent, RequestType, StatusClass } from '@tracelens/core';
+import type { EventFilter, EventSource, NetworkEvent, RequestType, StatusClass } from '@tracethrough/core';
 import { useInspector } from '../store';
 
 const STATUS: [StatusClass, string][] = [

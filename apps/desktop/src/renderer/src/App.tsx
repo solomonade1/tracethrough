@@ -8,8 +8,8 @@ export function App() {
 
   useEffect(() => {
     const { applyBatch, setStatus } = useInspector.getState();
-    const offEvents = window.tracelens.onEvents(applyBatch);
-    const offStatus = window.tracelens.onStatus(setStatus);
+    const offEvents = window.tracethrough.onEvents(applyBatch);
+    const offStatus = window.tracethrough.onStatus(setStatus);
     return () => {
       offEvents();
       offStatus();

@@ -4,7 +4,7 @@ import type { Plugin } from 'vite';
 
 /** Strict CSP for production builds only; Vite's dev server needs inline scripts for React refresh. */
 const productionCsp = (): Plugin => ({
-  name: 'tracelens-csp',
+  name: 'tracethrough-csp',
   apply: 'build',
   transformIndexHtml: (html) =>
     html.replace(
@@ -14,7 +14,7 @@ const productionCsp = (): Plugin => ({
 });
 
 // Workspace packages ship TypeScript source, so they are bundled rather than externalized.
-const bundleWorkspace = { exclude: ['@tracelens/core', '@tracelens/capture', '@tracelens/collector'] };
+const bundleWorkspace = { exclude: ['@tracethrough/core', '@tracethrough/capture', '@tracethrough/collector'] };
 
 export default defineConfig({
   main: {

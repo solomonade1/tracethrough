@@ -2,10 +2,10 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { createServer, request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { formatTraceparent, newTraceContext, type ServerEventInput } from '@tracelens/core';
-import { startCollector, type Collector } from '@tracelens/collector';
-import { startFixtureServer, type FixtureServer } from '@tracelens/fixtures';
-import { register, type TraceLensHandle } from '../src/index.ts';
+import { formatTraceparent, newTraceContext, type ServerEventInput } from '@tracethrough/core';
+import { startCollector, type Collector } from '@tracethrough/collector';
+import { startFixtureServer, type FixtureServer } from '@tracethrough/fixtures';
+import { register, type TraceThroughHandle } from '../src/index.ts';
 
 /** Stand-in for Next.js's global request store (Symbol.for('@next/work-unit-async-storage@<version>')). */
 const nextStorage = new AsyncLocalStorage<unknown>();
@@ -17,10 +17,10 @@ const requestStore = (traceparent: string | undefined, path = '/page', search = 
   url: { pathname: path, search },
 });
 
-describe('@tracelens/next', () => {
+describe('@tracethrough/next', () => {
   let collector: Collector;
   let upstream: FixtureServer;
-  let handle: TraceLensHandle;
+  let handle: TraceThroughHandle;
   let app: Server;
   let appPort: number;
   const received: ServerEventInput[] = [];

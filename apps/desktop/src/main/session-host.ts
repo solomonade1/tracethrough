@@ -1,5 +1,5 @@
-import { CaptureSession, InvalidTargetUrlError, validateTargetUrl, type BrowserChannel } from '@tracelens/capture';
-import { toHar, toSessionExport, type NetworkEvent, type ServerEventInput } from '@tracelens/core';
+import { CaptureSession, InvalidTargetUrlError, validateTargetUrl, type BrowserChannel } from '@tracethrough/capture';
+import { toHar, toSessionExport, type NetworkEvent, type ServerEventInput } from '@tracethrough/core';
 import { IPC, type EventBatch, type ExportFormat, type SessionStatus, type StartOptions, type StartResult } from '../shared/api';
 
 export interface SessionHostOptions {

@@ -1,4 +1,4 @@
-import type { BodyPreview, NetworkEvent } from '@tracelens/core';
+import type { BodyPreview, NetworkEvent } from '@tracethrough/core';
 
 export function formatBytes(n: number | undefined): string {
   if (n === undefined) return '';

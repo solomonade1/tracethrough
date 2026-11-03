@@ -1,5 +1,5 @@
 import { request } from 'node:http';
-import type { ServerEventInput } from '@tracelens/core';
+import type { ServerEventInput } from '@tracethrough/core';
 
 export interface ExporterOptions {
   collectorUrl: string;

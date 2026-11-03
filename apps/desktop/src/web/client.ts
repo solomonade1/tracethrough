@@ -1,14 +1,14 @@
-import { EXPORT_WARNING } from '@tracelens/core';
-import { IPC, type EventBatch, type SessionStatus, type TraceLensApi } from '../shared/api';
+import { EXPORT_WARNING } from '@tracethrough/core';
+import { IPC, type EventBatch, type SessionStatus, type TraceThroughApi } from '../shared/api';
 
 type Listener = (payload: unknown) => void;
 
 /**
- * `TraceLensApi` over HTTP for local web mode: calls are POSTs to `/api/<name>`, and the main
+ * `TraceThroughApi` over HTTP for local web mode: calls are POSTs to `/api/<name>`, and the main
  * process's pushes (`events`, `status`) arrive on one long-lived NDJSON stream.
  * `onLost` is called when the server stops or no longer accepts this tab's token.
  */
-export function createWebApi(token: string, onLost: (reason: string) => void): TraceLensApi {
+export function createWebApi(token: string, onLost: (reason: string) => void): TraceThroughApi {
   const auth = { authorization: `Bearer ${token}` };
   const listeners = new Map<string, Set<Listener>>();
   let streaming = false;
@@ -22,10 +22,10 @@ export function createWebApi(token: string, onLost: (reason: string) => void): T
         body: JSON.stringify(args),
       });
     } catch (err) {
-      onLost('TraceLens is not running. Start it again and open the link it prints.');
+      onLost('TraceThrough is not running. Start it again and open the link it prints.');
       throw err;
     }
-    if (res.status === 401) onLost('This link has expired. Open the link TraceLens printed when it started.');
+    if (res.status === 401) onLost('This link has expired. Open the link TraceThrough printed when it started.');
     const body = (await res.json()) as { result?: T; error?: string };
     if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status})`);
     return body.result as T;
@@ -36,10 +36,10 @@ export function createWebApi(token: string, onLost: (reason: string) => void): T
     try {
       res = await fetch('/api/stream', { headers: auth });
     } catch {
-      return onLost('TraceLens is not running. Start it again and open the link it prints.');
+      return onLost('TraceThrough is not running. Start it again and open the link it prints.');
     }
-    if (res.status === 401) return onLost('This link has expired. Open the link TraceLens printed when it started.');
-    if (!res.ok || !res.body) return onLost(`Could not connect to TraceLens (${res.status}).`);
+    if (res.status === 401) return onLost('This link has expired. Open the link TraceThrough printed when it started.');
+    if (!res.ok || !res.body) return onLost(`Could not connect to TraceThrough (${res.status}).`);
 
     const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
     let pending = '';
@@ -60,7 +60,7 @@ export function createWebApi(token: string, onLost: (reason: string) => void): T
     } catch {
       // Connection dropped mid-read; reported below.
     }
-    onLost('TraceLens stopped. Start it again and open the link it prints.');
+    onLost('TraceThrough stopped. Start it again and open the link it prints.');
   }
 
   function subscribe<T>(channel: string, listener: (payload: T) => void): () => void {
@@ -83,7 +83,7 @@ export function createWebApi(token: string, onLost: (reason: string) => void): T
       const data = await call<string | null>('export', format);
       if (!data || !confirm(`Export sanitized session?\n\n${EXPORT_WARNING}`)) return { saved: false };
       const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const name = `tracelens-${stamp}.${format === 'har' ? 'har' : 'json'}`;
+      const name = `tracethrough-${stamp}.${format === 'har' ? 'har' : 'json'}`;
       const link = document.createElement('a');
       link.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
       link.download = name;

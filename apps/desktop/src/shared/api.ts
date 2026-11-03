@@ -1,4 +1,4 @@
-import type { NetworkEvent } from '@tracelens/core';
+import type { NetworkEvent } from '@tracethrough/core';
 
 /** IPC channel names shared by main, preload and renderer. */
 export const IPC = {
@@ -61,8 +61,8 @@ export interface AppEnvironment {
 export type StartResult = { ok: true } | { ok: false; error: string };
 export type ExportResult = { saved: false } | { saved: true; path: string };
 
-/** The only surface the renderer has into the app (exposed as `window.tracelens`). */
-export interface TraceLensApi {
+/** The only surface the renderer has into the app (exposed as `window.tracethrough`). */
+export interface TraceThroughApi {
   startSession(url: string, options?: StartOptions): Promise<StartResult>;
   stopSession(): Promise<void>;
   clearSession(): Promise<void>;
