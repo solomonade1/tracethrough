@@ -8,6 +8,7 @@ export const IPC = {
   export: 'tl:export',
   connectInfo: 'tl:connect-info',
   regenerateToken: 'tl:regenerate-token',
+  environment: 'tl:environment',
   events: 'tl:events',
   status: 'tl:status',
 } as const;
@@ -50,6 +51,13 @@ export interface ConnectInfo {
   error?: string;
 }
 
+/** Facts about this machine the UI needs before a session starts. */
+export interface AppEnvironment {
+  version: string;
+  /** Browsers that can host a capture session, in the order they will be tried. */
+  browsers: { channel: string; label: string }[];
+}
+
 export type StartResult = { ok: true } | { ok: false; error: string };
 export type ExportResult = { saved: false } | { saved: true; path: string };
 
@@ -61,6 +69,7 @@ export interface TraceLensApi {
   exportSession(format: ExportFormat): Promise<ExportResult>;
   getConnectInfo(): Promise<ConnectInfo>;
   regenerateToken(): Promise<ConnectInfo>;
+  getEnvironment(): Promise<AppEnvironment>;
   onEvents(listener: (batch: EventBatch) => void): () => void;
   onStatus(listener: (status: SessionStatus) => void): () => void;
 }

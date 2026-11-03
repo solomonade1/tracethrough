@@ -14,6 +14,7 @@ const api: TraceLensApi = {
   exportSession: (format) => ipcRenderer.invoke(IPC.export, format),
   getConnectInfo: () => ipcRenderer.invoke(IPC.connectInfo),
   regenerateToken: () => ipcRenderer.invoke(IPC.regenerateToken),
+  getEnvironment: () => ipcRenderer.invoke(IPC.environment),
   onEvents: (listener) => subscribe<EventBatch>(IPC.events, listener),
   onStatus: (listener) => subscribe<SessionStatus>(IPC.status, listener),
 };

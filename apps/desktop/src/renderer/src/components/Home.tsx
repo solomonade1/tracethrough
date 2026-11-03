@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import type { AppEnvironment } from '../../../shared/api';
 import { useInspector } from '../store';
 import { ConnectPanel } from './ConnectPanel';
 
@@ -7,7 +8,13 @@ export function Home() {
   const [url, setUrl] = useState('https://');
   const [connect, setConnect] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const [env, setEnv] = useState<AppEnvironment | undefined>();
   const starting = status.state === 'starting';
+  const noBrowser = env !== undefined && env.browsers.length === 0;
+
+  useEffect(() => {
+    void window.tracelens.getEnvironment().then(setEnv);
+  }, []);
 
   async function start(e: FormEvent) {
     e.preventDefault();
@@ -22,6 +29,7 @@ export function Home() {
       <div className="home-brand">
         <span className="logo" aria-hidden>◎</span>
         <h1>TraceLens</h1>
+        {env && <span className="muted small">v{env.version}</span>}
       </div>
 
       <section className="card" aria-labelledby="inspect-title">
@@ -46,7 +54,7 @@ export function Home() {
             aria-invalid={!!error}
             aria-describedby={error ? 'url-error' : undefined}
           />
-          <button type="submit" className="primary" disabled={starting}>
+          <button type="submit" className="primary" disabled={starting || noBrowser}>
             {starting ? 'Starting…' : 'Start session'}
           </button>
         </form>
@@ -61,6 +69,17 @@ export function Home() {
           <p id="url-error" role="alert" className="error">
             {error ?? status.error}
           </p>
+        )}
+        {noBrowser ? (
+          <p role="alert" className="error">
+            TraceLens needs Google Chrome or Microsoft Edge to open sites. Install one, then restart TraceLens.
+          </p>
+        ) : (
+          env && (
+            <p className="muted small">
+              Sessions open in {env.browsers[0]!.label} with a fresh, separate profile.
+            </p>
+          )
         )}
         <ul className="facts">
           <li>Only inspect sites you are authorized to access.</li>

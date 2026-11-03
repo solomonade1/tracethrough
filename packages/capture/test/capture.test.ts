@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MASK, NetworkEvent } from '@tracelens/core';
 import { CANARY, startFixtureServer, type FixtureServer } from '@tracelens/fixtures';
-import { CaptureSession, InvalidTargetUrlError, validateTargetUrl, type BrowserChannel } from '../src/index.ts';
+import { CaptureSession, InvalidTargetUrlError, findBrowsers, validateTargetUrl, type BrowserChannel } from '../src/index.ts';
 
 const channel = process.env.TRACELENS_BROWSER_CHANNEL as BrowserChannel | undefined;
 const PREVIEW_BYTES = 64 * 1024;
@@ -228,5 +228,13 @@ describe('CaptureSession limits', () => {
       await session.stop();
       await server.close();
     }
+  });
+});
+
+describe('findBrowsers', () => {
+  it('reports only known channels, without duplicates', () => {
+    const found = findBrowsers();
+    expect(new Set(found).size).toBe(found.length);
+    for (const c of found) expect(['chromium', 'chrome', 'msedge']).toContain(c);
   });
 });

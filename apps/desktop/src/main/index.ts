@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BrowserWindow, app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron';
-import type { BrowserChannel } from '@tracelens/capture';
+import { BROWSER_LABELS, findBrowsers, type BrowserChannel } from '@tracelens/capture';
 import { EXPORT_WARNING } from '@tracelens/core';
 import { IPC, type ExportFormat, type ExportResult } from '../shared/api';
 import { ConnectService } from './connect';
@@ -103,6 +103,10 @@ app.whenReady().then(async () => {
   handle(IPC.export, (format) => exportSession(format));
   handle(IPC.connectInfo, () => connect.info());
   handle(IPC.regenerateToken, () => connect.regenerate());
+  handle(IPC.environment, () => ({
+    version: app.getVersion(),
+    browsers: findBrowsers().map((channel) => ({ channel, label: BROWSER_LABELS[channel] })),
+  }));
   await connect.start();
   createWindow();
   app.on('activate', () => {

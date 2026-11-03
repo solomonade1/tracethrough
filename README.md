@@ -62,6 +62,22 @@ pnpm test:e2e
 
 If Electron's postinstall hangs behind a TLS-intercepting proxy, see "Electron binary" in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Packaging (Windows installer)
+
+```bash
+pnpm package:win
+```
+
+Produces `apps/desktop/release/TraceLens-Setup-<version>-x64.exe` (per-user NSIS installer; lets the user choose the folder, adds Start menu and desktop shortcuts) and the unpacked app in `apps/desktop/release/win-unpacked/`. The installer does **not** include a browser: TraceLens uses the installed Google Chrome or Microsoft Edge, and the Home screen says so (and disables Start) when neither is found.
+
+Run the end-to-end suite against the packaged app rather than the dev build:
+
+```bash
+TRACELENS_E2E_EXECUTABLE=apps/desktop/release/win-unpacked/TraceLens.exe pnpm exec vitest run --config apps/desktop/vitest.config.ts
+```
+
+Not done yet: code signing (unsigned builds trigger a Windows SmartScreen "unknown publisher" prompt; pilots choose **More info → Run anyway**), auto-update, and macOS/Linux builds (configured, but must be built on those platforms). The icon in `apps/desktop/build/icon.png` is a generated placeholder (`pnpm exec tsx scripts/make-icon.ts`).
+
 Inspect a site interactively (headed browser; close the window or Ctrl+C to stop):
 
 ```bash

@@ -21,15 +21,13 @@ import {
   type Timing,
   type TraceContext,
 } from '@tracelens/core';
-
-/** `chromium` = Playwright's bundled build; `chrome` / `msedge` = the user's installed browser (fresh, isolated profile). */
-export type BrowserChannel = 'chromium' | 'chrome' | 'msedge';
+import { findBrowsers, type BrowserChannel } from './browsers.ts';
 
 export interface CaptureOptions {
   url: string;
   /** Headed is the default: the developer browses the site interactively. */
   headless?: boolean;
-  /** Omit to try bundled Chromium, then Chrome, then Edge. */
+  /** Omit to use the first detected of bundled Chromium, Chrome, Edge. */
   channel?: BrowserChannel;
   redaction?: RedactionPolicy;
   bodyLimits?: BodyLimits;
@@ -62,7 +60,9 @@ export function validateTargetUrl(input: string): URL {
 }
 
 async function launchBrowser(headless: boolean, channel?: BrowserChannel) {
-  const candidates: BrowserChannel[] = channel ? [channel] : ['chromium', 'chrome', 'msedge'];
+  // Detected browsers first; if detection finds nothing (unusual install path), still try each.
+  const detected = findBrowsers();
+  const candidates: BrowserChannel[] = channel ? [channel] : detected.length ? detected : ['chromium', 'chrome', 'msedge'];
   const errors: string[] = [];
   for (const c of candidates) {
     try {
@@ -72,7 +72,7 @@ async function launchBrowser(headless: boolean, channel?: BrowserChannel) {
       errors.push(`${c}: ${(err as Error).message.split('\n')[0]}`);
     }
   }
-  throw new Error(`No supported Chromium browser could be launched.\n${errors.join('\n')}`);
+  throw new Error(`Could not start a browser. Install Google Chrome or Microsoft Edge and try again.\n${errors.join('\n')}`);
 }
 
 function toRequestType(resourceType: string): RequestType {
