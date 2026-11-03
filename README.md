@@ -72,6 +72,8 @@ pnpm test:e2e
 
 If Electron's postinstall hangs behind a TLS-intercepting proxy, see "Electron binary" in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs all of the above on Windows, macOS and Ubuntu for every push to `main` and every pull request, plus the Next.js e2e on Ubuntu and an unsigned Windows package tested end to end. Run it by hand from the repository's **Actions** tab (**Run workflow**).
+
 ## Packaging (Windows installer)
 
 ```bash

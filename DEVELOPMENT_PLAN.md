@@ -150,7 +150,7 @@ Duplicate request detection, request comparison/JSON diff (DX-02), annotations e
 | UI / E2E | Playwright driving Electron | Start session → see list → filter → open detail → export |
 | Performance | Scripted fixture (2k / 5k events) | Filter p95, memory, 30-min soak |
 
-CI: GitHub Actions, Windows + macOS runners, `pnpm typecheck && pnpm test`.
+CI: GitHub Actions ([ci.yml](.github/workflows/ci.yml)) on Windows, macOS and Ubuntu: `pnpm typecheck`, `pnpm test`, desktop e2e (under `xvfb-run` on Linux) and the web mode build; Windows also packages the app unsigned and reruns e2e against the packaged exe. The Next.js App Connect e2e runs on Ubuntu only. Tests use Playwright's bundled Chromium on every OS.
 
 ---
 
