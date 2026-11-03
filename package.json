@@ -15,6 +15,7 @@
     "browsers:install": "playwright install chromium",
     "test:e2e": "pnpm --filter @tracelens/desktop build && vitest run --config apps/desktop/vitest.config.ts",
     "app": "pnpm --filter @tracelens/desktop dev",
+    "web": "pnpm --filter @tracelens/desktop build:web && tsx apps/desktop/src/web/cli.ts",
     "example:node": "pnpm --filter @tracelens/example-node-app start",
     "test:e2e:next": "pnpm --filter @tracelens/desktop build && vitest run --config apps/desktop/vitest.next.config.ts",
     "example:next": "pnpm --filter @tracelens/example-next-app dev",

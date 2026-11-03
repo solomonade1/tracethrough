@@ -12,7 +12,8 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "dist:win": "electron-vite build && electron-builder --win --x64 --config electron-builder.config.cjs",
-    "dist:dir": "electron-vite build && electron-builder --win --x64 --dir --config electron-builder.config.cjs"
+    "dist:dir": "electron-vite build && electron-builder --win --x64 --dir --config electron-builder.config.cjs",
+    "build:web": "vite build --config vite.web.config.ts"
   },
   "dependencies": {
     "playwright": "1.64.1"

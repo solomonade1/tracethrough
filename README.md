@@ -44,6 +44,16 @@ pnpm app
 
 Enter a URL (try the fixture site below) and click **Start session**. A separate browser window opens; browse there and requests stream into the app.
 
+Or run it in your own browser instead of Electron (**local web mode**): same UI, same capture engine, same App Connect token.
+
+```bash
+pnpm web
+```
+
+It builds the UI, starts a server on `127.0.0.1:47812` (falls back to a free port) and opens your browser at a link that carries a per-run access token in the URL fragment. Options: `--port <n>`, `--no-open`; the `TRACELENS_*` environment overrides of the desktop app apply too. Capture still runs on this machine: sessions open in a separate Chrome/Edge window, exactly as in the desktop app. Exports download through the browser.
+
+Web mode safety: loopback only; every API call needs the token (sent as a header, never a cookie, so other local servers on `127.0.0.1` never receive it); requests with a foreign `Host` (DNS rebinding) or `Origin` are refused; strict CSP. Not yet: hot reload for the web UI (rebuild with `pnpm web`), and a published `npx` package.
+
 Run the tests (unit + headless capture integration):
 
 ```bash

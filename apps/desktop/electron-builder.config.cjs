@@ -10,7 +10,8 @@ module.exports = {
   productName: 'TraceLens',
   copyright: 'Copyright © 2026 TraceLens',
   directories: { output: 'release', buildResources: 'build' },
-  files: ['out/**', 'package.json'],
+  // out/web is the local web mode UI (pnpm web), not part of the desktop app.
+  files: ['out/**', '!out/web/**', 'package.json'],
   // Playwright launches browser processes and reads its own files at runtime; keep it outside the asar.
   asarUnpack: ['node_modules/playwright/**', 'node_modules/playwright-core/**'],
   // Reuse the Electron binary already installed (and checksum-verified) instead of downloading it again.

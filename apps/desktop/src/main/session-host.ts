@@ -101,6 +101,11 @@ export class SessionHost {
     this.#setStatus({ ...this.#status, dropped: 0 });
   }
 
+  /** Everything currently buffered, for a UI that attaches mid-session (e.g. a reloaded browser tab). */
+  snapshot(): EventBatch {
+    return { upserts: this.#session?.buffer.all() ?? [], removed: [] };
+  }
+
   /** Serialized export of the current (already redacted) buffer, or undefined when empty. */
   exportData(format: ExportFormat): string | undefined {
     const session = this.#session;
