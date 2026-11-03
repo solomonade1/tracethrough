@@ -7,12 +7,14 @@
     "node": ">=20"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/desktop/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "spike": "tsx scripts/spike.ts",
     "fixtures": "tsx scripts/fixtures.ts",
-    "browsers:install": "playwright install chromium"
+    "browsers:install": "playwright install chromium",
+    "test:e2e": "pnpm --filter @tracelens/desktop build && vitest run --config apps/desktop/vitest.config.ts",
+    "app": "pnpm --filter @tracelens/desktop dev"
   },
   "devDependencies": {
     "@tracelens/capture": "workspace:*",

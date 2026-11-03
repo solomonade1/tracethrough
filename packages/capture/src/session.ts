@@ -123,7 +123,7 @@ function hostnameOf(url: string): string {
  * One isolated browser context capturing every request made by its pages, popups and
  * service workers. Only redacted events leave this class.
  */
-export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; closed: [] }> {
+export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicted: [id: string]; closed: [] }> {
   readonly id = randomUUID();
   readonly buffer: SessionBuffer;
 
@@ -201,7 +201,8 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; closed
 
   #emit(event: NetworkEvent) {
     if (this.#closed) return;
-    this.buffer.upsert(event);
+    const evicted = this.buffer.upsert(event);
+    if (evicted) this.emit('evicted', evicted);
     this.emit('event', event);
   }
 

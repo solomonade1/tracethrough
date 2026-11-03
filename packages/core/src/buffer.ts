@@ -13,13 +13,16 @@ export class SessionBuffer {
     if (capacity < 1) throw new RangeError('capacity must be >= 1');
   }
 
-  upsert(event: NetworkEvent): void {
+  /** Returns the id of the exchange evicted to make room, if any. */
+  upsert(event: NetworkEvent): string | undefined {
+    let evicted: string | undefined;
     if (!this.#events.has(event.id) && this.#events.size >= this.capacity) {
-      const oldest = this.#events.keys().next().value;
-      if (oldest !== undefined) this.#events.delete(oldest);
+      evicted = this.#events.keys().next().value;
+      if (evicted !== undefined) this.#events.delete(evicted);
       this.#dropped++;
     }
     this.#events.set(event.id, event);
+    return evicted;
   }
 
   get(id: string): NetworkEvent | undefined {

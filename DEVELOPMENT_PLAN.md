@@ -166,7 +166,27 @@ CI: GitHub Actions, Windows + macOS runners, `pnpm typecheck && pnpm test`.
 
 ---
 
-## 7. Immediate next steps (this week)
+## 7. Phase 1 progress
+
+| Item | Status |
+|---|---|
+| Electron shell (contextIsolation, sandboxed renderer, CJS preload, no navigation/window.open, sender-checked IPC, prod CSP) | ✅ |
+| Home: Inspect URL with validation (URL-01), trust-boundary copy, Connect App placeholder | ✅ |
+| Workspace: recording indicator, Stop, Clear, New session (with discard confirm) | ✅ |
+| Main→renderer streaming: 50 ms coalesced batches; ring-buffer evictions propagated | ✅ |
+| Virtualized table with follow-tail, keyboard nav, grid ARIA (UI-01) | ✅ |
+| Filters: text (+ opt-in body search), status class, type, source, method, domain (UI-02) | ✅ (pure filter in core; 2k-event p95 test) |
+| Detail: Overview, Headers, Request, Response, Timing with masked-value highlighting and explicit unavailable states (UI-03, US-06) | ✅ |
+| Export HAR 1.2 + native JSON behind a sensitivity warning (EXP-01) | ✅ |
+| E2E: Playwright drives the built app against fixtures | ✅ |
+| Initiator and Notes tabs | ⏭ (initiator needs CDP; notes is DX-03) |
+| Settings screen (caps, custom redaction rules, blocked domains) | ⏭ Sprint 3 |
+| SQLite persistence / Save session / retention (SEC-02) | ⏭ Sprint 4 |
+| Navigation-grouped waterfall (UI-04), copy as cURL (DX-01) | ⏭ Sprint 4 stretch |
+| Packaging (NSIS/dmg), first-run browser check, signing | ⏭ Sprint 4 |
+| Renderer bundle is ~840 KB unminified, mostly Zod pulled in via `@tracelens/core`; split a schema-free entry for the renderer | ⏭ |
+
+## 8. Phase 0 next steps (Day 1)
 
 1. ✅ Monorepo scaffold, TypeScript, Vitest.
 2. ✅ `@tracelens/core`: event schema, redaction, ring buffer.
@@ -183,4 +203,5 @@ CI: GitHub Actions, Windows + macOS runners, `pnpm typecheck && pnpm test`.
 - **Redaction must cover page source, not just API payloads.** The canary test caught secrets in inline `<script>` config and embedded URLs; the redactor now masks sensitive `key: "value"` assignments and query params in HTML/JS/plain text.
 - **Truncated JSON is a leak risk.** The text fallback had a bug where a non-string value swallowed a nested secret; covered by a unit test now.
 - **Node 20 is past EOL (Apr 2026).** Vitest 5 already requires Node 22. Pinned Vitest 4 for now; move the team to Node 22 LTS (`.nvmrc`) and lift the pin.
+- **Electron binary download hangs** behind the same proxy (the postinstall prints nothing and never finishes), although Node's own `fetch` reaches GitHub fine. Workaround used: download `electron-v<ver>-win32-x64.zip` from the GitHub release, verify its SHA-256 against `node_modules/electron/checksums.json`, extract it to `node_modules/electron/dist`, and write `electron.exe` to `node_modules/electron/path.txt`. Long term: set `ELECTRON_MIRROR` to an internal mirror, or have IT supply the corporate root CA via `NODE_EXTRA_CA_CERTS`.
 - Capture uses Playwright APIs only so far; no CDP needed yet. `response.body()` buffers whole bodies, so oversize responses are skipped via `Content-Length` when declared — chunked responses without it are still read fully (CDP streaming adapter if this bites).
