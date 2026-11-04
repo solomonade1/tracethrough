@@ -49,7 +49,8 @@ export class InvalidTargetUrlError extends Error {}
 export function validateTargetUrl(input: string): URL {
   let url: URL;
   try {
-    url = new URL(input.trim());
+    // The URL box is prefilled with "https://", so a pasted full URL arrives as "https://https://host".
+    url = new URL(input.trim().replace(/^(?:https?:\/\/)+(?=https?:\/\/)/i, ''));
   } catch {
     throw new InvalidTargetUrlError(`Not a valid URL: ${input}`);
   }
