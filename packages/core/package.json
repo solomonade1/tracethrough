@@ -1,10 +1,46 @@
 {
   "name": "@tracethrough/core",
   "version": "0.0.0",
-  "private": true,
+  "description": "Event schema, redaction engine and trace context for TraceThrough.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/solomonade1/trace-lens.git",
+    "directory": "packages/core"
+  },
+  "keywords": [
+    "tracethrough",
+    "network",
+    "inspector",
+    "debugging"
+  ],
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "pnpm build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
   },
   "dependencies": {
     "zod": "^4.6.7"
