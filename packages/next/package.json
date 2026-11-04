@@ -1,6 +1,6 @@
 {
   "name": "@tracethrough/next",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "TraceThrough App Connect for Next.js (instrumentation.ts, Node runtime).",
   "license": "MIT",
   "repository": {
