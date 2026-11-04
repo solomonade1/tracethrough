@@ -37,15 +37,18 @@ jobs:
       # When that PR is merged (no pending changesets): builds and publishes to npm.
       - uses: changesets/action@v2
         with:
-          version: pnpm changeset version
-          publish: pnpm release
-          title: 'Version Packages'
-          commit: 'Version Packages'
-        env:
+          version-script: pnpm changeset version
+          publish-script: pnpm release
+          pr-title: 'Version Packages'
+          commit-message: 'Version Packages'
+          # v2 creates a GitHub Release per package by default. Releases on this repo are the desktop
+          # installers (desktop-release.yml), and "latest release" must keep pointing at those.
+          create-github-releases: false
           # PRs opened with the default token do not trigger CI, which would leave the required checks on the
           # "Version Packages" PR pending forever. Optionally add a fine-grained PAT (Contents + Pull requests:
           # read/write) as the RELEASE_TOKEN secret; without it, close and reopen the PR to run CI.
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+        env:
           # Needed for the first publish only. After configuring trusted publishing on npmjs.com for each
           # package, delete this secret and the line below.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
