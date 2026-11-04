@@ -20,9 +20,15 @@
     "test:e2e:next": "pnpm --filter @tracethrough/desktop build && vitest run --config apps/desktop/vitest.next.config.ts",
     "example:next": "pnpm --filter @tracethrough/example-next-app dev",
     "smoke:next": "tsx scripts/next-smoke.ts",
-    "package:win": "pnpm --filter @tracethrough/desktop dist:win"
+    "package:win": "pnpm --filter @tracethrough/desktop dist:win",
+    "build:packages": "pnpm --filter @tracethrough/core --filter @tracethrough/node --filter @tracethrough/next build",
+    "changeset": "changeset",
+    "release": "pnpm build:packages && changeset publish",
+    "package:mac": "pnpm --filter @tracethrough/desktop dist:mac",
+    "package:linux": "pnpm --filter @tracethrough/desktop dist:linux"
   },
   "devDependencies": {
+    "@changesets/cli": "^3.0.3",
     "@tracethrough/capture": "workspace:*",
     "@tracethrough/collector": "workspace:*",
     "@tracethrough/core": "workspace:*",

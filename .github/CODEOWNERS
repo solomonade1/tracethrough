@@ -1,0 +1,4 @@
+# Every change needs a review from a code owner (enforced by the branch ruleset).
+*                    @solomonade1
+/.github/            @solomonade1
+/packages/core/src/redact.ts @solomonade1

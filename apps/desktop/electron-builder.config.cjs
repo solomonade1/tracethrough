@@ -35,9 +35,11 @@ module.exports = {
   mac: {
     target: ['dmg'],
     category: 'public.app-category.developer-tools',
+    artifactName: '${productName}-${version}-mac-${arch}.${ext}',
   },
   linux: {
     target: ['AppImage'],
     category: 'Development',
+    artifactName: '${productName}-${version}-linux-${arch}.${ext}',
   },
 };

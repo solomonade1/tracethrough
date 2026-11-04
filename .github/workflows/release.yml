@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+# One release run at a time; never cancel a publish half way.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write       # push the "Version Packages" branch
+  pull-requests: write  # open/update the "Version Packages" PR
+  id-token: write       # npm provenance (and trusted publishing once configured on npmjs.com)
+
+jobs:
+  release:
+    name: Version or publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6.1.0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      # The capture tests drive a real Chromium; same setup as ci.yml.
+      - name: Allow Chromium sandbox
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install chromium --with-deps
+
+      - run: pnpm test
+
+      # With pending changesets: opens/updates the "Version Packages" PR.
+      # When that PR is merged (no pending changesets): builds and publishes to npm.
+      - uses: changesets/action@v1
+        with:
+          version: pnpm changeset version
+          publish: pnpm release
+          title: 'Version Packages'
+          commit: 'Version Packages'
+        env:
+          # PRs opened with the default token do not trigger CI, which would leave the required checks on the
+          # "Version Packages" PR pending forever. Optionally add a fine-grained PAT (Contents + Pull requests:
+          # read/write) as the RELEASE_TOKEN secret; without it, close and reopen the PR to run CI.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          # Needed for the first publish only. After configuring trusted publishing on npmjs.com for each
+          # package, delete this secret and the line below.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
