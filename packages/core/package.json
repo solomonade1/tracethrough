@@ -1,6 +1,6 @@
 {
   "name": "@tracethrough/core",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Event schema, redaction engine and trace context for TraceThrough.",
   "license": "MIT",
   "repository": {
