@@ -33,7 +33,7 @@ These are proposed defaults so engineering can start; each is cheap to revisit u
 | 5 | Privacy | **Ephemeral by default**; explicit "Save session" persists to SQLite. | Pilot feedback |
 | 6 | Business model | Out of scope for engineering; keep packages licence-clean so an open core is possible. | — |
 | 7 | Auth paths to test first | Cookie session login, then OAuth redirect (PKCE), then popup SSO. | Sprint 3 |
-| 8 | Naming | Product name **TraceThrough** (`tracethrough`); renamed from the codename TraceLens because `tracelens` is taken on npm. `tracethrough` and the GitHub name were free on 3 Nov 2026; the `@tracethrough` npm scope and a trademark search are still to confirm. | Before first public build |
+| 8 | Naming | Product name **TraceThrough** (`tracethrough`); renamed from the codename TraceLens because `tracelens` is taken on npm. The GitHub repo (`solomonade1/tracethrough`) and the `@tracethrough` npm organization are created; a trademark search is still to confirm. | Before first public build |
 
 ---
 

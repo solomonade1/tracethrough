@@ -34,6 +34,13 @@ jobs:
 
       - run: pnpm typecheck
 
+      # The capture tests drive a real Chromium; same setup as ci.yml.
+      - name: Allow Chromium sandbox
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install chromium --with-deps
+
       - run: pnpm test
 
       # With pending changesets: opens/updates the "Version Packages" PR.
@@ -45,7 +52,10 @@ jobs:
           title: 'Version Packages'
           commit: 'Version Packages'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PRs opened with the default token do not trigger CI, which would leave the required checks on the
+          # "Version Packages" PR pending forever. Optionally add a fine-grained PAT (Contents + Pull requests:
+          # read/write) as the RELEASE_TOKEN secret; without it, close and reopen the PR to run CI.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           # Needed for the first publish only. After configuring trusted publishing on npmjs.com for each
           # package, delete this secret and the line below.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

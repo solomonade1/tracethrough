@@ -331,7 +331,7 @@ Not done yet: code signing and notarization, and auto-update. Releases are unsig
 2. Merging to `main` makes [release.yml](.github/workflows/release.yml) open a **Version Packages** PR (version bumps and changelogs).
 3. Merging that PR builds (`pnpm build:packages`) and publishes to npm with provenance.
 
-One-time setup: create a granular npm token limited to the `@tracethrough` scope and save it as the `NPM_TOKEN` repository secret; allow GitHub Actions to create pull requests (Settings, Actions, General). After the first publish, enable trusted publishing for each package on npmjs.com (repo plus `release.yml`) and delete the secret.
+One-time setup: create a granular npm token limited to the `@tracethrough` scope and save it as the `NPM_TOKEN` repository secret; allow GitHub Actions to create pull requests (Settings, Actions, General). If you require status checks on `main`, also add a fine-grained token as the `RELEASE_TOKEN` secret, because PRs opened with the default token do not run CI. After the first publish, enable trusted publishing for each package on npmjs.com (repo plus `release.yml`) and delete the secret.
 
 ---
 

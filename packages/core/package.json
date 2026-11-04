@@ -5,7 +5,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/solomonade1/trace-lens.git",
+    "url": "git+https://github.com/solomonade1/tracethrough.git",
     "directory": "packages/core"
   },
   "keywords": [
