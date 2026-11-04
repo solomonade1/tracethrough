@@ -327,7 +327,7 @@ Not done yet: code signing and notarization, and auto-update. Releases are unsig
 
 `@tracethrough/core`, `@tracethrough/node` and `@tracethrough/next` are published with [Changesets](https://github.com/changesets/changesets). In the repo their `exports` point at TypeScript source (tests and apps need no build); `publishConfig` swaps in the compiled `dist/` on publish.
 
-1. In a PR that changes one of them, run `pnpm changeset`, pick the bump and describe the change.
+1. In a PR that changes one of them, run `pnpm changeset`, pick the bump and describe the change. The **Changeset** CI check fails the PR without one; use `pnpm changeset --empty` for changes that need no release.
 2. Merging to `main` makes [release.yml](.github/workflows/release.yml) open a **Version Packages** PR (version bumps and changelogs).
 3. Merging that PR builds (`pnpm build:packages`) and publishes to npm with provenance.
 

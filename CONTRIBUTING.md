@@ -16,7 +16,7 @@ pnpm typecheck
 
 1. Fork the repo, create a branch, make a focused change.
 2. Add or update tests. Run `pnpm typecheck` and `pnpm test`; run `pnpm test:e2e` if you touched the app.
-3. If you changed `@tracethrough/core`, `@tracethrough/node` or `@tracethrough/next`, run `pnpm changeset` and commit the generated file.
+3. If you changed `@tracethrough/core`, `@tracethrough/node` or `@tracethrough/next`, run `pnpm changeset` and commit the generated file. CI fails the PR without one. If the change needs no release (tests, docs), run `pnpm changeset --empty` instead.
 4. Update the docs when behavior changes.
 5. Open the PR. CI must pass and a maintainer must approve. First-time contributors' workflows need a maintainer to approve the run.
 
