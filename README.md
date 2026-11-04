@@ -261,7 +261,7 @@ pnpm test:e2e
 
 `test:e2e` builds the app and drives it with Playwright's Electron support, with capture headless. `pnpm test:e2e:next` runs the same against the Next.js sample. If Electron's postinstall hangs behind a TLS-intercepting proxy, see "Electron binary" in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-CI ([ci.yml](.github/workflows/ci.yml)) runs these on Windows, macOS and Ubuntu for every push to `main` and every pull request, plus the Next.js e2e on Ubuntu and an unsigned Windows package tested end to end.
+CI ([ci.yml](.github/workflows/ci.yml)) runs these on Windows, macOS and Ubuntu for every pull request (required to pass before merging), plus the Next.js e2e on Ubuntu and an unsigned Windows package tested end to end.
 
 ### Try App Connect with the samples
 
