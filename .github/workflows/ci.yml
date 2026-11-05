@@ -1,8 +1,8 @@
 name: CI
 
+# Runs on pull requests only: branch protection requires an up-to-date, passing PR before merge, so a push
+# to main would just repeat the same run.
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
