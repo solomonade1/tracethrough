@@ -307,6 +307,8 @@ Output goes to `apps/desktop/release/`.
 
 ## Releasing
 
+Full step-by-step flow (pushing, npm packages, desktop installers, troubleshooting): [docs/RELEASING.md](docs/RELEASING.md).
+
 ### Desktop installers
 
 Bump `version` in `apps/desktop/package.json`, commit, then tag and push:
