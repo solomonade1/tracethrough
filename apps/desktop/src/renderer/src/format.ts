@@ -55,7 +55,9 @@ export function unavailableMessage(body: BodyPreview): string {
     case 'read-failed':
       return 'The browser did not make this body available (cancelled, opaque/CORS-restricted, or evicted from the network cache).';
     case 'omitted-by-policy':
-      return `Multipart body${size} omitted by redaction policy.`;
+      return body.mime?.startsWith('multipart/')
+        ? `Multipart body${size} omitted because masking is on.`
+        : `Body${size} not captured (body capture is turned off).`;
     default:
       return 'Body unavailable.';
   }

@@ -170,8 +170,9 @@ describe('local web mode server', () => {
     expect(stream.statuses[0]!.state).toBe('idle');
 
     expect(await rpc('start', 'file:///etc/passwd')).toMatchObject({ ok: false });
-    expect(await rpc('start', `${fixtures.url}/basic`, { connect: false })).toEqual({ ok: true });
+    expect(await rpc('start', `${fixtures.url}/basic`, { connect: false, mask: true })).toEqual({ ok: true });
     await stream.until(() => stream.statuses.some((s) => s.state === 'recording'));
+    expect(stream.statuses.find((s) => s.state === 'recording')!.masked).toBe(true);
     const hasSlow = () => [...stream.events.values()].some((e) => e.urlSanitized.includes('/api/slow') && e.state === 'complete');
     await stream.until(hasSlow);
     expect(JSON.stringify([...stream.events.values()])).not.toContain(CANARY);
@@ -190,5 +191,29 @@ describe('local web mode server', () => {
     await stream.until(() => stream.statuses.at(-1)!.state === 'stopped');
     stream.close();
     // Launching the browser happens inside this test; give it the same budget capture tests give their launch hooks.
+  }, 60_000);
+
+  it('shows values exactly as captured when masking is off (the default)', async () => {
+    const stream = openStream();
+    expect(await rpc('start', `${fixtures.url}/basic`, { connect: false })).toEqual({ ok: true });
+    await stream.until(() => stream.statuses.some((s) => s.state === 'recording'));
+    const recording = stream.statuses.find((s) => s.state === 'recording')!;
+    expect(recording.masked).toBe(false);
+    // The stream opens with a snapshot of the previous (masked) session; only look at this one.
+    const login = () =>
+      [...stream.events.values()].find(
+        (e) => e.sessionId === recording.sessionId && e.urlSanitized.endsWith('/api/echo') && e.state === 'complete',
+      );
+    await stream.until(() => !!login());
+    expect(login()!.requestHeadersSanitized?.authorization).toBe(`Bearer ${CANARY}`);
+    expect(JSON.parse(login()!.requestBody!.preview!)).toMatchObject({ password: CANARY });
+
+    const har = JSON.parse(await rpc<string>('export', 'har'));
+    expect(har.log.comment).toContain('Masking was off');
+    expect(JSON.stringify(har)).toContain(CANARY);
+
+    await rpc('stop');
+    await stream.until(() => stream.statuses.at(-1)!.state === 'stopped');
+    stream.close();
   }, 60_000);
 });

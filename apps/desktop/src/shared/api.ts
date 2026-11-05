@@ -18,6 +18,8 @@ export type ExportFormat = 'har' | 'json';
 export interface StartOptions {
   /** App Connect: treat the target URL's origin as the developer's own app and link server events. */
   connect: boolean;
+  /** Mask cookies, tokens, API keys and sensitive body fields. Off (values shown as captured) when omitted. */
+  mask?: boolean;
 }
 
 export interface SessionStatus {
@@ -28,6 +30,8 @@ export interface SessionStatus {
   channel?: string;
   /** Origin receiving `traceparent` when App Connect is on for this session. */
   connectedOrigin?: string;
+  /** True when this session masks secrets; false when values are shown exactly as captured. */
+  masked?: boolean;
   /** Exchanges evicted by the session cap since the session started. */
   dropped: number;
   error?: string;

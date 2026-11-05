@@ -1,4 +1,4 @@
-import { EXPORT_WARNING } from '@tracethrough/core';
+import { exportWarning } from '@tracethrough/core';
 import { IPC, type EventBatch, type SessionStatus, type TraceThroughApi } from '../shared/api';
 
 type Listener = (payload: unknown) => void;
@@ -12,6 +12,8 @@ export function createWebApi(token: string, onLost: (reason: string) => void): T
   const auth = { authorization: `Bearer ${token}` };
   const listeners = new Map<string, Set<Listener>>();
   let streaming = false;
+  /** Whether the current session masks secrets, from the latest status push (picks the export warning). */
+  let masked = true;
 
   async function call<T>(name: string, ...args: unknown[]): Promise<T> {
     let res: Response;
@@ -54,6 +56,7 @@ export function createWebApi(token: string, onLost: (reason: string) => void): T
           pending = pending.slice(end + 1);
           if (!line) continue;
           const { channel, payload } = JSON.parse(line) as { channel: string; payload: unknown };
+          if (channel === IPC.status) masked = (payload as SessionStatus).masked ?? true;
           for (const listener of listeners.get(channel) ?? []) listener(payload);
         }
       }
@@ -81,7 +84,8 @@ export function createWebApi(token: string, onLost: (reason: string) => void): T
     clearSession: () => call('clear'),
     async exportSession(format) {
       const data = await call<string | null>('export', format);
-      if (!data || !confirm(`Export sanitized session?\n\n${EXPORT_WARNING}`)) return { saved: false };
+      const question = masked ? 'Export sanitized session?' : 'Export session with unmasked secrets?';
+      if (!data || !confirm(`${question}\n\n${exportWarning(masked)}`)) return { saved: false };
       const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const name = `tracethrough-${stamp}.${format === 'har' ? 'har' : 'json'}`;
       const link = document.createElement('a');

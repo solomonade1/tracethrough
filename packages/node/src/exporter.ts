@@ -10,6 +10,8 @@ export interface ExporterOptions {
 }
 
 const MAX_BATCH = 500;
+/** Keeps a batch well under the collector's request limit now that events can carry body previews. */
+const MAX_BATCH_BYTES = 1024 * 1024;
 const FAILURES_BEFORE_PAUSE = 3;
 const PAUSE_MS = 30_000;
 
@@ -74,11 +76,27 @@ export class Exporter {
   }
 
   async #sendBatch() {
-    const batch = [...this.#queue.values()].slice(0, MAX_BATCH);
+    // Always send at least one event; stop adding once the batch would pass the size budget.
+    const batch: ServerEventInput[] = [];
+    const parts: string[] = [];
+    let bytes = 0;
+    for (const e of this.#queue.values()) {
+      const json = JSON.stringify(e);
+      if (batch.length && (batch.length >= MAX_BATCH || bytes + json.length > MAX_BATCH_BYTES)) break;
+      batch.push(e);
+      parts.push(json);
+      bytes += json.length + 1;
+    }
     for (const e of batch) this.#queue.delete(e.id);
     try {
-      const { status, body } = await this.#post(JSON.stringify({ events: batch }));
+      const { status, body } = await this.#post(`{"events":[${parts.join(',')}]}`);
       if (status === 401 || status === 403) return this.disable(`collector rejected the request (${status})`);
+      // Too large even on its own: retrying cannot help, so count it as dropped.
+      if (status === 413) {
+        this.dropped += batch.length;
+        this.#failures = 0;
+        return;
+      }
       if (status < 200 || status >= 300) throw new Error(`HTTP ${status}`);
       this.#failures = 0;
       if (body?.enabled === false) this.disable('collector asked the SDK to stop (kill switch)');

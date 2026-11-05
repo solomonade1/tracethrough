@@ -1,7 +1,8 @@
 /**
- * Redaction runs before an event is buffered, persisted, exported or sent to the UI.
- * It is fail-closed: anything whose key *looks* sensitive is masked, even at the cost of
- * over-redaction. Redaction is defence in depth, not a guarantee (PRD §10.10).
+ * When masking is on, redaction runs before an event is buffered, persisted, exported or sent to
+ * the UI. It is fail-closed: anything whose key *looks* sensitive is masked, even at the cost of
+ * over-redaction. Redaction is defence in depth, not a guarantee (PRD §10.10). Masking can be
+ * turned off per session (`createRedactor(false)`), in which case values are kept as captured.
  */
 
 export const MASK = '[REDACTED]';
@@ -47,13 +48,30 @@ export interface Redacted<T> {
 }
 
 export interface Redactor {
+  /** False for the pass-through redactor: values are kept exactly as captured. */
+  readonly masking: boolean;
   headers(headers: Record<string, string>): Redacted<Record<string, string>>;
   url(url: string): Redacted<string>;
   /** Redacts a decoded text body according to its MIME type. */
   body(text: string, mime: string | undefined): Redacted<string>;
 }
 
-export function createRedactor(policy: RedactionPolicy = DEFAULT_REDACTION_POLICY): Redactor {
+const keep = <T>(value: T): Redacted<T> => ({ value, redacted: false });
+
+/** Keeps every header, URL and body exactly as captured (masking turned off). */
+export const PASSTHROUGH_REDACTOR: Redactor = {
+  masking: false,
+  headers: (headers) => keep({ ...headers }),
+  url: keep,
+  body: (text) => keep(text),
+};
+
+/** `false` turns masking off and returns {@link PASSTHROUGH_REDACTOR}. */
+export function createRedactor(policy: RedactionPolicy | false = DEFAULT_REDACTION_POLICY): Redactor {
+  return policy === false ? PASSTHROUGH_REDACTOR : createMaskingRedactor(policy);
+}
+
+function createMaskingRedactor(policy: RedactionPolicy): Redactor {
   const headerSet = new Set(policy.headerNames.map((h) => h.toLowerCase()));
   const querySet = new Set(policy.queryKeys.map((k) => k.toLowerCase()));
   const jsonPaths = policy.jsonPaths.map((p) => p.split('.'));
@@ -262,7 +280,7 @@ export function createRedactor(policy: RedactionPolicy = DEFAULT_REDACTION_POLIC
     return sourceText(text);
   }
 
-  return { headers, url, body };
+  return { masking: true, headers, url, body };
 }
 
 function safeDecode(s: string): string {

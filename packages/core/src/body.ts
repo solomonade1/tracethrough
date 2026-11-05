@@ -50,7 +50,7 @@ export function unavailableBody(
 }
 
 /**
- * Turns raw body bytes into a redacted, bounded preview. Raw bytes never leave this function.
+ * Turns raw body bytes into a bounded preview, redacted unless the redactor is the pass-through one.
  */
 export function buildBodyPreview(
   bytes: Uint8Array | undefined | null,
@@ -62,10 +62,12 @@ export function buildBodyPreview(
   if (!bytes || bytes.length === 0) return { body: unavailableBody('empty', mime, 0), redacted: false };
 
   const sizeBytes = bytes.length;
-  if (mime?.startsWith('multipart/')) {
+  const multipart = mime?.startsWith('multipart/') ?? false;
+  // Multipart form fields cannot be masked reliably, so they are only shown with masking off.
+  if (multipart && redactor.masking) {
     return { body: unavailableBody('omitted-by-policy', mime, sizeBytes), redacted: false };
   }
-  const textual = isTextualMime(mime) || (!mime && !looksBinary(bytes));
+  const textual = isTextualMime(mime) || ((!mime || multipart) && !looksBinary(bytes));
   if (!textual) return { body: unavailableBody('binary', mime, sizeBytes), redacted: false };
 
   // Large bodies are cut before redaction so we never hold a huge decoded string; the

@@ -201,7 +201,7 @@ Design: [docs/rfc-001-app-connect.md](docs/rfc-001-app-connect.md).
 |---|---|
 | RFC: trace propagation, linking rule, transport, safety defaults | ✅ |
 | `@tracethrough/collector`: loopback-only, bearer token (timing-safe), rejects `Origin` and foreign `Host` (DNS rebinding), 1 MB / 500-event caps, Zod-validated, kill-switch reply | ✅ |
-| `@tracethrough/node`: `fetch`/undici via `diagnostics_channel` (no monkey-patching); incoming `traceparent` via `http.server.request.start` + AsyncLocalStorage; metadata only | ✅ Node 20 and 22 |
+| `@tracethrough/node`: `fetch`/undici via `diagnostics_channel`; incoming `traceparent` via `http.server.request.start` + AsyncLocalStorage; body previews via a `fetch` wrapper (added 5 Nov 2026; diagnostics channels carry no body bytes on Node 20/22) | ✅ Node 20 and 22 |
 | SDK safety: off without env, loopback-only collector, production opt-in, `TRACETHROUGH_DISABLED`, bounded coalescing queue, circuit breaker, self-disable on 401/403 or kill switch, never throws into host app | ✅ |
 | Capture: `traceparent` injected only for the connected origin (Playwright routing); browser event records the same trace id | ✅ |
 | Server events re-redacted on ingest, `source` forced, ids namespaced so they cannot overwrite browser events | ✅ |

@@ -4,17 +4,41 @@ export const EXPORT_WARNING =
   'Exports contain captured traffic. Known secrets are masked, but redaction is defence in depth, not a guarantee: ' +
   'review the file before sharing it.';
 
+export const EXPORT_WARNING_UNMASKED =
+  'Masking was off for this session: the export contains cookies, tokens, API keys and request/response bodies exactly ' +
+  'as captured. Treat the file as a secret and do not share it.';
+
+/** The warning for an export of a session captured with masking on or off. */
+export function exportWarning(masked: boolean): string {
+  return masked ? EXPORT_WARNING : EXPORT_WARNING_UNMASKED;
+}
+
 export interface SessionExport {
   format: 'tracethrough-session';
   version: 1;
   exportedAt: string;
   sessionId: string;
   droppedEvents: number;
+  /** False when the session was captured with masking off (values are exactly as captured). */
+  masked: boolean;
   events: NetworkEvent[];
 }
 
-export function toSessionExport(sessionId: string, events: readonly NetworkEvent[], droppedEvents = 0): SessionExport {
-  return { format: 'tracethrough-session', version: 1, exportedAt: new Date().toISOString(), sessionId, droppedEvents, events: [...events] };
+export function toSessionExport(
+  sessionId: string,
+  events: readonly NetworkEvent[],
+  droppedEvents = 0,
+  masked = true,
+): SessionExport {
+  return {
+    format: 'tracethrough-session',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    sessionId,
+    droppedEvents,
+    masked,
+    events: [...events],
+  };
 }
 
 // --- HAR 1.2 (http://www.softwareishard.com/blog/har-12-spec/) -------------------------------
@@ -93,7 +117,7 @@ function bodyComment(body: BodyPreview | undefined): string | undefined {
 
 const orMinus1 = (n: number | undefined) => (n === undefined ? -1 : n);
 
-export function toHar(events: readonly NetworkEvent[], creatorVersion = '0.0.0'): Har {
+export function toHar(events: readonly NetworkEvent[], creatorVersion = '0.0.0', masked = true): Har {
   const byId = new Map(events.map((e) => [e.id, e]));
   const redirectTarget = new Map<string, string>();
   for (const e of events) if (e.redirectedFromId) redirectTarget.set(e.redirectedFromId, e.urlSanitized);
@@ -168,7 +192,7 @@ export function toHar(events: readonly NetworkEvent[], creatorVersion = '0.0.0')
       creator: { name: 'TraceThrough', version: creatorVersion },
       pages: [],
       entries,
-      comment: EXPORT_WARNING,
+      comment: exportWarning(masked),
     },
   };
 }

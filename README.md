@@ -1,9 +1,9 @@
 # TraceThrough
 
-A developer network inspector. Enter a URL, browse it in an isolated Chrome or Edge window, and inspect the traffic with secrets masked. If you own the app, connect it and TraceThrough also shows the HTTP calls your **server** makes (for example SSR data fetches), linked to the browser request that caused them.
+A developer network inspector. Enter a URL, browse it in an isolated Chrome or Edge window, and inspect the traffic: full headers, cookies, tokens and bodies, as captured. If you own the app, connect it and TraceThrough also shows the HTTP calls your **server** makes (for example SSR data fetches), linked to the browser request that caused them.
 
 - **Local-first:** captured traffic never leaves your machine.
-- **Redacted by default:** tokens, cookies, API keys and passwords are masked before anything is stored, shown or exported.
+- **Unmasked by default, masking on request:** you see every value as it was sent. Tick **Mask secrets** before a session to hide tokens, cookies, API keys and passwords from the UI and exports (for screenshots or sharing).
 - **Honest:** every row is labelled **Browser** or **Server**. For sites you don't own you only see browser traffic.
 
 Contents: [Install](#install) · [Inspect a website](#inspect-a-website) · [Connect your own app](#connect-your-own-app) · [Run in your browser](#run-in-your-browser-no-installer) · [Troubleshooting](#troubleshooting) · [Develop](#develop-this-repository) · [Release](#releasing)
@@ -46,17 +46,17 @@ The installers are not code-signed yet, so your OS warns before the first run. T
 2. A separate browser window opens with a fresh, empty profile. Browse there as normal.
 3. Every request streams into TraceThrough. Click a row to see its overview, headers, request, response and timing.
 4. Use the search box and the filter chips (status class, type, Browser/Server, method, domain) to narrow the list. Tick **Bodies** to search body previews too.
-5. **Export HAR** or **Export JSON** saves the sanitized session. Sessions live in memory until you export them.
+5. **Export HAR** or **Export JSON** saves the session. Without **Mask secrets** the file contains live cookies and tokens: treat it as a secret. Sessions live in memory until you export them.
 
 Only inspect sites you are authorized to access.
 
-What you'll see: requests, redirects, failures (with the reason, such as a DNS error), timings, and redacted headers and bodies. Missing, truncated, binary or streamed bodies say why instead of showing an empty string.
+What you'll see: requests, redirects, failures (with the reason, such as a DNS error), timings, and headers and bodies exactly as captured (masked if you ticked **Mask secrets**). Missing, truncated, binary or streamed bodies say why instead of showing an empty string.
 
 ---
 
 ## Connect your own app
 
-Connecting adds your server's outgoing `fetch` calls to the list, each linked to the browser request that triggered it. It works for **Node.js** servers and **Next.js** (Node runtime). Server-side bodies are never captured, only metadata (URL, method, status, timing, redacted headers).
+Connecting adds your server's outgoing `fetch` calls to the list, each linked to the browser request that triggered it. It works for **Node.js** servers and **Next.js** (Node runtime). Each server call shows its URL, method, status, timing, headers, and request and response bodies (previews up to 64 KB each by default).
 
 ### 1. Get the connection details
 
@@ -141,13 +141,16 @@ In TraceThrough, enter your app's URL (for example `http://localhost:3000`), **t
 | `token` | `TRACETHROUGH_TOKEN` | none (SDK stays off) |
 | `allowProduction` | `TRACETHROUGH_ALLOW_PRODUCTION=1` | off in production |
 | `allowTargets` | | all hosts; list hostnames or patterns to restrict |
-| `redaction` | | built-in policy (see `@tracethrough/core`) |
+| `redaction` | | `false`: values sent as captured; pass a policy (see `@tracethrough/core`) to mask in the SDK |
+| `captureBodies` | `TRACETHROUGH_CAPTURE_BODIES=0` turns it off | on |
+| `maxBodyBytes` | | 64 KB per body (max 512 KB); longer bodies are truncated |
 | | `TRACETHROUGH_DISABLED=1` | forces the SDK off |
 
 - It does nothing unless both the URL and the token are set.
 - The collector must be a loopback address (`127.0.0.1` or `localhost`); remote collection is not supported.
 - It is off when `NODE_ENV=production`, unless you opt in.
-- Events are redacted again by the TraceThrough app, which also forces them to `source: server` whatever the SDK sent.
+- Values only ever go to the local collector. The TraceThrough app masks them when the session has **Mask secrets** ticked, and always forces them to `source: server` whatever the SDK sent.
+- Body capture wraps `globalThis.fetch` (Node's undici exposes no body bytes to diagnostics channels). Responses are read from a clone, so your code still gets the full body; streamed (`text/event-stream`) and binary bodies are reported, not read.
 
 ### Support matrix
 

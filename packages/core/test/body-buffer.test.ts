@@ -47,6 +47,22 @@ const ev = (id: string): NetworkEvent => ({
   method: 'GET', urlSanitized: `https://x.test/${id}`, domain: 'x.test', isNavigation: false, redactionApplied: false,
 });
 
+describe('buildBodyPreview with masking off', () => {
+  const off = createRedactor(false);
+  const enc = (t: string) => new TextEncoder().encode(t);
+
+  it('shows sensitive fields and textual multipart bodies', () => {
+    expect(buildBodyPreview(enc('{"password":"p"}'), 'application/json', off).body.preview).toBe('{"password":"p"}');
+    const form = ['--x', 'Content-Disposition: form-data; name="token"', '', 'abc', '--x--', ''].join('\r\n');
+    expect(buildBodyPreview(enc(form), 'multipart/form-data; boundary=x', off).body).toMatchObject({ preview: form });
+  });
+
+  it('still reports binary multipart bodies instead of showing them', () => {
+    const bytes = new Uint8Array([45, 45, 120, 0, 1, 2]);
+    expect(buildBodyPreview(bytes, 'multipart/form-data; boundary=x', off).body.unavailableReason).toBe('binary');
+  });
+});
+
 describe('SessionBuffer', () => {
   it('evicts the oldest exchange beyond capacity and counts drops', () => {
     const b = new SessionBuffer(2);

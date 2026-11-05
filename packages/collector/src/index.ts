@@ -70,7 +70,8 @@ function listen(server: Server, port: number): Promise<number> {
  */
 export async function startCollector(opts: CollectorOptions): Promise<Collector> {
   const token = opts.token ?? generateToken();
-  const maxBodyBytes = opts.maxBodyBytes ?? 1024 * 1024;
+  // SDK batches stay under ~1 M characters; this leaves room for multi-byte text in body previews.
+  const maxBodyBytes = opts.maxBodyBytes ?? 8 * 1024 * 1024;
   const stats = { batches: 0, events: 0, rejected: 0 };
   let port = 0;
 

@@ -29,7 +29,8 @@ export interface CaptureOptions {
   headless?: boolean;
   /** Omit to use the first detected of bundled Chromium, Chrome, Edge. */
   channel?: BrowserChannel;
-  redaction?: RedactionPolicy;
+  /** Masking policy; `false` keeps headers, URLs and bodies exactly as captured. Default: masked. */
+  redaction?: RedactionPolicy | false;
   bodyLimits?: BodyLimits;
   /** Responses whose Content-Length exceeds this are not read at all. */
   maxBodyReadBytes?: number;
@@ -132,7 +133,7 @@ function hostnameOf(url: string): string {
 
 /**
  * One isolated browser context capturing every request made by its pages, popups and
- * service workers. Only redacted events leave this class.
+ * service workers. Events are masked before they leave this class unless masking is off.
  */
 export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicted: [id: string]; closed: [] }> {
   readonly id = randomUUID();
@@ -165,7 +166,7 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
 
     context.on('request', (req) => this.#onRequest(req));
     context.on('requestfinished', (req) => this.#track(this.#onFinished(req)));
-    context.on('requestfailed', (req) => this.#onFailed(req));
+    context.on('requestfailed', (req) => this.#track(this.#onFailed(req)));
     context.on('page', (page) =>
       page.on('close', () => {
         if (context.pages().length === 0) void this.stop();
@@ -194,6 +195,11 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
     return this.#page;
   }
 
+  /** False when this session keeps values exactly as captured. */
+  get masking(): boolean {
+    return this.#redactor.masking;
+  }
+
   get closed(): boolean {
     return this.#closed;
   }
@@ -216,7 +222,7 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
   /**
    * Adds a server event reported by an App Connect SDK. The sender is not trusted: source and
    * session are forced, ids are namespaced so they cannot overwrite browser events, and this
-   * session's redaction policy is applied again.
+   * session's masking policy is applied again (a no-op when masking is off).
    */
   ingestServerEvent(input: ServerEventInput): boolean {
     if (this.#closed) return false;
@@ -406,16 +412,23 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
     return buildBodyPreview(bytes, contentType, this.#redactor, this.#bodyLimits);
   }
 
-  #onFailed(req: Request) {
+  async #onFailed(req: Request) {
     const id = this.#ids.get(req);
-    const base = id ? this.buffer.get(id) : undefined;
+    if (!id || !this.buffer.get(id)) return;
+    const durationMs = Date.now() - (this.#startedAt.get(req) ?? Date.now());
+    // headers() omits cookies; allHeaders() has the full set when the browser still knows it.
+    const raw = await req.allHeaders().catch(() => undefined);
+    const base = this.buffer.get(id);
     if (!base) return;
+    const headers = raw ? this.#redactor.headers(raw) : undefined;
     const errorText = req.failure()?.errorText ?? 'unknown';
     this.#emit({
       ...base,
       state: 'failed',
-      durationMs: Date.now() - (this.#startedAt.get(req) ?? Date.now()),
+      durationMs,
+      requestHeadersSanitized: headers?.value ?? base.requestHeadersSanitized,
       error: { code: errorText, message: describeFailure(errorText) },
+      redactionApplied: base.redactionApplied || !!headers?.redacted,
     });
   }
 }

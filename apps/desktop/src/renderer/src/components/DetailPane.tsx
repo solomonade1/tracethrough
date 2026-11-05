@@ -80,6 +80,7 @@ function BodyView({ body, pendingText }: { body: BodyPreview | undefined; pendin
 
 function Overview({ e, events }: { e: NetworkEvent; events: NetworkEvent[] }) {
   const select = useInspector((s) => s.select);
+  const masked = useInspector((s) => s.status.masked);
   const from = e.redirectedFromId ? events.find((x) => x.id === e.redirectedFromId) : undefined;
   const to = events.find((x) => x.redirectedFromId === e.id);
   const row = (k: string, v: ReactNode) =>
@@ -152,7 +153,14 @@ function Overview({ e, events }: { e: NetworkEvent; events: NetworkEvent[] }) {
           {row('Triggered by', triggeredBy)}
           {row('Server calls', serverCalls)}
           {row('Trace ID', e.traceId && <code>{e.traceId}</code>)}
-          {row('Redaction', e.redactionApplied ? 'Some values were masked before capture' : 'Nothing matched redaction rules')}
+          {row(
+            'Redaction',
+            e.redactionApplied
+              ? 'Some values were masked before capture'
+              : masked
+                ? 'Nothing matched redaction rules'
+                : 'Off for this session: values are shown exactly as captured',
+          )}
         </tbody>
       </table>
     </>

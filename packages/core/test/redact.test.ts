@@ -129,3 +129,21 @@ describe('body', () => {
     );
   });
 });
+
+describe('masking off', () => {
+  const off = createRedactor(false);
+
+  it('keeps headers, URLs and bodies exactly as captured', () => {
+    expect(off.masking).toBe(false);
+    expect(r.masking).toBe(true);
+    const headers = { authorization: `Bearer ${JWT}`, cookie: 'sid=s3cr3t', 'x-api-key': 'k' };
+    expect(off.headers(headers)).toEqual({ value: headers, redacted: false });
+    expect(off.url('https://u:p@example.test/a?token=t#access_token=x')).toEqual({
+      value: 'https://u:p@example.test/a?token=t#access_token=x',
+      redacted: false,
+    });
+    // Not re-serialized either: formatting is kept.
+    const json = '{ "password": "hunter2",\n  "n": 1 }';
+    expect(off.body(json, 'application/json')).toEqual({ value: json, redacted: false });
+  });
+});
