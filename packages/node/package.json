@@ -1,6 +1,6 @@
 {
   "name": "@tracethrough/node",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "TraceThrough App Connect SDK: reports a Node server's outgoing fetch calls.",
   "license": "MIT",
   "repository": {
