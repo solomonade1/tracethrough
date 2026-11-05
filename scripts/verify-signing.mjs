@@ -15,7 +15,7 @@
  * Windows uses Get-AuthenticodeSignature; macOS mounts the dmg and uses codesign, spctl and stapler;
  * Linux AppImages are never signed. Nothing here reads credentials.
  */
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -41,12 +41,12 @@ export function interpretCodesignFailure(verifyOutput, displayOutput = '') {
   return { status: 'invalid', detail };
 }
 
+// Returns stdout and stderr together on success too: `codesign -d` reports only on stderr.
 function run(file, args) {
-  try {
-    return { ok: true, out: execFileSync(file, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) };
-  } catch (err) {
-    return { ok: false, out: `${err.stdout ?? ''}${err.stderr ?? ''}`.trim() };
-  }
+  const r = spawnSync(file, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  const out = `${r.stdout ?? ''}${r.stderr ?? ''}`.trim();
+  if (r.error) return { ok: false, out: `${out}${r.error.message}`.trim() };
+  return { ok: r.status === 0, out };
 }
 
 function verifyWindows(file) {
