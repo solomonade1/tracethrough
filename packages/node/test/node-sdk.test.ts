@@ -1,7 +1,7 @@
 import { Agent, createServer, request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { MASK, formatTraceparent, newTraceContext, type ServerEventInput } from '@tracethrough/core';
+import { formatTraceparent, newTraceContext, type ServerEventInput } from '@tracethrough/core';
 import { startCollector, type Collector } from '@tracethrough/collector';
 import { CANARY, startFixtureServer, type FixtureServer } from '@tracethrough/fixtures';
 import { register, type TraceThroughHandle } from '../src/index.ts';
@@ -38,10 +38,12 @@ describe('App Connect Node SDK', () => {
 
   /** Calls the instrumented app with node:http (not fetch) so the test client isn't itself observed. */
   function callApp(path: string, headers: Record<string, string> = {}, agent?: Agent) {
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<string>((resolve, reject) => {
       const req = request({ host: '127.0.0.1', port: appPort, path, headers, agent }, (res) => {
-        res.resume();
-        res.on('end', resolve);
+        let text = '';
+        res.setEncoding('utf8');
+        res.on('data', (c: string) => (text += c));
+        res.on('end', () => resolve(text));
       });
       req.on('error', reject);
       req.end();
@@ -54,7 +56,10 @@ describe('App Connect Node SDK', () => {
       // Latest version of each exchange (the SDK sends headers-time and completion updates).
       const latest = new Map(received.map((e) => [e.id, e]));
       const matches = [...latest.values()].filter(pred);
-      if (matches.length >= count && matches.every((e) => e.state !== 'pending' && e.timing?.downloadMs !== undefined || e.state === 'failed')) return matches;
+      // Complete exchanges are done once timing and the (separately read) response body are in.
+      const done = (e: ServerEventInput) =>
+        e.state === 'failed' || (e.state === 'complete' && e.timing?.downloadMs !== undefined && e.responseBody !== undefined);
+      if (matches.length >= count && matches.every(done)) return matches;
       await new Promise((r) => setTimeout(r, 20));
       await handle.flush();
     }
@@ -75,6 +80,19 @@ describe('App Connect Node SDK', () => {
           await Promise.all([fetch(`${upstream.url}/api/not-found`).then((r) => r.text()), fetch(`${upstream.url}/api/error`).then((r) => r.text())]);
         } else if (req.url === '/fail') {
           await fetch('http://tracethrough-nope.invalid/x').catch(() => {});
+        } else if (req.url === '/post') {
+          await (
+            await fetch(`${upstream.url}/api/echo`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ username: 'ada', password: CANARY }),
+            })
+          ).text();
+        } else if (req.url === '/large') {
+          // The app must still get the whole body even though the SDK keeps only a preview.
+          return res.end(String((await (await fetch(`${upstream.url}/api/large?kb=200`)).text()).length));
+        } else if (req.url === '/binary') {
+          await (await fetch(`${upstream.url}/api/binary`)).arrayBuffer();
         }
         res.end('ok');
       } catch (err) {
@@ -104,21 +122,45 @@ describe('App Connect Node SDK', () => {
 
     expect(events.map((e) => new URL(e.urlSanitized).pathname).sort()).toEqual(['/api/error', '/api/not-found', '/api/ok']);
     for (const e of events) {
-      expect(e).toMatchObject({ state: 'complete', type: 'fetch', handler: `GET /page?session=${MASK}&q=1` });
+      expect(e).toMatchObject({ state: 'complete', type: 'fetch', handler: 'GET /page?session=abc&q=1' });
       expect(e.spanId).toMatch(/^[0-9a-f]{16}$/);
-      expect(e.responseBody?.unavailableReason).toBe('omitted-by-policy');
     }
     const byPath = Object.fromEntries(events.map((e) => [new URL(e.urlSanitized).pathname, e]));
     expect(byPath['/api/ok']!.status).toBe(200);
     expect(byPath['/api/not-found']!.status).toBe(404);
     expect(byPath['/api/error']!.status).toBe(500);
+    expect(byPath['/api/error']!.responseBody).toMatchObject({ mime: 'application/json', preview: '{"error":"boom"}', truncated: false });
   });
 
-  it('redacts before sending', () => {
-    const ok = received.find((e) => e.urlSanitized.includes('/api/ok'))!;
-    expect(ok.urlSanitized).toContain(`api_key=${MASK}`);
-    expect(ok.requestHeadersSanitized?.authorization).toBe(`Bearer ${MASK}`);
-    expect(JSON.stringify(received)).not.toContain(CANARY);
+  it('sends headers, URLs and bodies exactly as captured by default', async () => {
+    const [ok] = await eventsFor((e) => e.urlSanitized.includes('/api/ok'));
+    expect(ok!.urlSanitized).toContain(`api_key=${CANARY}`);
+    expect(ok!.requestHeadersSanitized?.authorization).toBe(`Bearer ${CANARY}`);
+    expect(ok!.responseBody?.preview).toContain(`"accessToken":"${CANARY}"`);
+    expect(ok!.redactionApplied).toBe(false);
+  });
+
+  it('captures request and response bodies', async () => {
+    await callApp('/post');
+    const [post] = await eventsFor((e) => e.method === 'POST' && e.urlSanitized.endsWith('/api/echo'));
+    expect(post!.requestBody).toMatchObject({ mime: 'application/json', truncated: false });
+    expect(JSON.parse(post!.requestBody!.preview!)).toEqual({ username: 'ada', password: CANARY });
+    expect(JSON.parse(post!.responseBody!.preview!)).toMatchObject({ echo: { username: 'ada', password: CANARY } });
+  });
+
+  it('truncates long bodies without changing what the app receives', async () => {
+    const appGot = Number(await callApp('/large'));
+    expect(appGot).toBeGreaterThan(200 * 1024);
+    const [large] = await eventsFor((e) => e.urlSanitized.includes('/api/large'));
+    expect(large!.responseBody!.truncated).toBe(true);
+    expect(Buffer.byteLength(large!.responseBody!.preview!)).toBeLessThanOrEqual(64 * 1024);
+    expect(large!.responseBody!.preview).toMatch(/^{"password":"/);
+  });
+
+  it('reports binary bodies instead of reading them', async () => {
+    await callApp('/binary');
+    const [binary] = await eventsFor((e) => e.urlSanitized.endsWith('/api/binary'));
+    expect(binary!.responseBody).toMatchObject({ mime: 'image/png', unavailableReason: 'binary' });
   });
 
   it('records failures with an error code', async () => {

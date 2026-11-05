@@ -3,15 +3,16 @@ import { randomUUID } from 'node:crypto';
 import diagnostics from 'node:diagnostics_channel';
 import type { IncomingMessage } from 'node:http';
 import {
-  DEFAULT_REDACTION_POLICY,
   createRedactor,
   newSpanId,
   normalizeMime,
   parseTraceparent,
   unavailableBody,
+  type BodyPreview,
   type RedactionPolicy,
   type ServerEventInput,
 } from '@tracethrough/core';
+import { DEFAULT_SERVER_BODY_BYTES, MAX_SERVER_BODY_BYTES, createBodyReader } from './bodies.ts';
 import { Exporter } from './exporter.ts';
 
 export interface TraceThroughNodeOptions {
@@ -23,7 +24,16 @@ export interface TraceThroughNodeOptions {
   allowProduction?: boolean;
   /** Only record calls to these hosts (exact hostname or pattern). Default: all hosts. */
   allowTargets?: readonly (string | RegExp)[];
-  redaction?: RedactionPolicy;
+  /**
+   * Mask values in the SDK before they leave the process. Default `false`: headers, URLs and bodies
+   * are sent as captured to the local collector, and the TraceThrough app decides per session
+   * whether to mask them ("Mask secrets").
+   */
+  redaction?: RedactionPolicy | false;
+  /** Capture request and response body previews (default true; TRACETHROUGH_CAPTURE_BODIES=0 turns it off). */
+  captureBodies?: boolean;
+  /** Max bytes of each body preview (default 64 KB, at most 512 KB). Longer bodies are truncated. */
+  maxBodyBytes?: number;
   flushIntervalMs?: number;
   maxQueue?: number;
   logger?: Pick<Console, 'warn'>;
@@ -62,6 +72,14 @@ interface InFlight {
   event: ServerEventInput;
   start: number;
   headersAt?: number;
+  /** Headers have been reported, so later updates (bodies, trailers) must be re-sent. */
+  sent?: boolean;
+}
+
+/** One `fetch()` call: the undici requests it made (redirects add more) and its request body. */
+interface FetchScope {
+  flights: InFlight[];
+  requestBody?: BodyPreview;
 }
 
 /** Shape of undici's diagnostics `request` object (Node's fetch). Headers are an array or a raw string depending on version. */
@@ -140,9 +158,13 @@ export function register(opts: TraceThroughNodeOptions = {}): TraceThroughHandle
     return disabledHandle(config);
   }
 
-  const redactor = createRedactor(opts.redaction ?? DEFAULT_REDACTION_POLICY);
+  const redactor = createRedactor(opts.redaction ?? false);
   const context = new AsyncLocalStorage<RequestContext>();
+  const fetchScope = new AsyncLocalStorage<FetchScope>();
   const inflight = new WeakMap<object, InFlight>();
+  const captureBodies = (opts.captureBodies ?? true) && process.env.TRACETHROUGH_CAPTURE_BODIES !== '0';
+  const maxBodyBytes = Math.min(Math.max(1, Math.floor(opts.maxBodyBytes ?? DEFAULT_SERVER_BODY_BYTES)), MAX_SERVER_BODY_BYTES);
+  const bodies = createBodyReader(redactor, maxBodyBytes);
   let disabledReason: string | undefined;
 
   const exporter = new Exporter({
@@ -200,7 +222,8 @@ export function register(opts: TraceThroughNodeOptions = {}): TraceThroughHandle
     const store = currentContext();
     const headers = redactor.headers(requestHeaders(request.headers));
     const safeUrl = redactor.url(url.href);
-    inflight.set(request, {
+    const scope = fetchScope.getStore();
+    const flight: InFlight = {
       start: performance.now(),
       event: {
         id: randomUUID(),
@@ -216,9 +239,18 @@ export function register(opts: TraceThroughNodeOptions = {}): TraceThroughHandle
         traceId: store?.traceId,
         spanId: newSpanId(),
         handler: store?.handler,
+        requestBody: scope?.requestBody,
         redactionApplied: safeUrl.redacted || headers.redacted,
       },
-    });
+    };
+    inflight.set(request, flight);
+    scope?.flights.push(flight);
+  };
+
+  /** Merges a late update (a body read after the headers arrived) and re-sends it if already reported. */
+  const update = (f: InFlight, patch: Partial<ServerEventInput>) => {
+    f.event = { ...f.event, ...patch };
+    if (f.sent) exporter.push(f.event);
   };
 
   const onHeaders = (message: unknown) => {
@@ -237,10 +269,15 @@ export function register(opts: TraceThroughNodeOptions = {}): TraceThroughHandle
       durationMs: round(f.headersAt - f.start),
       timing: { ttfbMs: round(f.headersAt - f.start) },
       responseHeadersSanitized: headers.value,
-      // v1 is metadata-only: server bodies are never read (RFC-001).
-      responseBody: unavailableBody('omitted-by-policy', normalizeMime(raw['content-type']), Number.isFinite(length) ? length : undefined),
+      // The fetch wrapper fills the body in once it has been read (or reports why it was not).
+      responseBody:
+        f.event.responseBody ??
+        (captureBodies
+          ? undefined
+          : unavailableBody('omitted-by-policy', normalizeMime(raw['content-type']), Number.isFinite(length) ? length : undefined)),
       redactionApplied: f.event.redactionApplied || headers.redacted,
     };
+    f.sent = true;
     exporter.push(f.event);
   };
 
@@ -250,8 +287,8 @@ export function register(opts: TraceThroughNodeOptions = {}): TraceThroughHandle
     if (!f) return;
     inflight.delete(request);
     const end = performance.now();
-    exporter.push({
-      ...f.event,
+    f.sent = true;
+    update(f, {
       durationMs: round(end - f.start),
       timing: { ...f.event.timing, downloadMs: f.headersAt ? round(end - f.headersAt) : undefined },
     });
@@ -262,13 +299,64 @@ export function register(opts: TraceThroughNodeOptions = {}): TraceThroughHandle
     const f = inflight.get(request);
     if (!f) return;
     inflight.delete(request);
-    exporter.push({
-      ...f.event,
+    f.sent = true;
+    update(f, {
       state: 'failed',
       durationMs: round(performance.now() - f.start),
       error: { code: error.code ?? error.cause?.code, message: redactor.url(error.message).value },
     });
   };
+
+  // --- bodies: undici's diagnostics channels carry no body bytes, so wrap fetch itself ---------
+  const originalFetch = globalThis.fetch;
+  const readRequestBody = (scope: FetchScope, input: unknown, init: RequestInit | undefined) =>
+    bodies.request(input, init).then(
+      (body) => {
+        if (!body) return;
+        scope.requestBody = body;
+        for (const f of scope.flights) update(f, { requestBody: body });
+      },
+      () => {},
+    );
+  const readResponseBody = (scope: FetchScope, res: Response) => {
+    // Redirects create one undici request each; the response belongs to the last one.
+    const f = scope.flights.at(-1);
+    if (!f) return; // Not an undici request we observed (e.g. served from a framework cache).
+    void bodies.response(res).then(
+      (body) => update(f, { responseBody: body }),
+      () => update(f, { responseBody: unavailableBody('read-failed', normalizeMime(res.headers.get('content-type') ?? undefined)) }),
+    );
+  };
+  const wrappedFetch = function fetch(this: unknown, input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) {
+    if (!subscribed) return originalFetch.call(this, input, init);
+    const scope: FetchScope = { flights: [] };
+    return fetchScope.run(scope, () => {
+      // Read the request body before fetch starts consuming it; never let it delay or break the call.
+      try {
+        void readRequestBody(scope, input, init);
+      } catch {
+        /* ignore */
+      }
+      const pending = originalFetch.call(this, input, init);
+      void pending.then(
+        (res) => {
+          try {
+            readResponseBody(scope, res);
+          } catch {
+            /* ignore */
+          }
+        },
+        () => {},
+      );
+      return pending;
+    });
+  } as typeof globalThis.fetch;
+  // Frameworks tag fetch with their own properties (Next.js: __nextPatched); keep them visible.
+  if (typeof originalFetch === 'function') {
+    Object.defineProperties(wrappedFetch, Object.getOwnPropertyDescriptors(originalFetch));
+  }
+  const fetchWrapped = captureBodies && typeof originalFetch === 'function';
+  if (fetchWrapped) globalThis.fetch = wrappedFetch;
 
   const subscriptions: [string, (m: unknown) => void][] = [
     ['http.server.request.start', onServerRequest],
@@ -294,6 +382,8 @@ export function register(opts: TraceThroughNodeOptions = {}): TraceThroughHandle
     if (!subscribed) return;
     subscribed = false;
     for (const [name, fn] of guarded) diagnostics.unsubscribe(name, fn);
+    // Put fetch back unless something wrapped it after us (then ours stays a harmless pass-through).
+    if (fetchWrapped && globalThis.fetch === wrappedFetch) globalThis.fetch = originalFetch;
   }
 
   const handle: TraceThroughHandle = {

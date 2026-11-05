@@ -85,6 +85,7 @@ describe('App Connect with a real Next.js app (next dev)', () => {
   it('links the SSR fetch to the page navigation and the route-handler fetch to its API call', async () => {
     await win.locator('#target-url').fill(`${nextUrl}/`);
     await win.getByLabel(/This is my app/).check();
+    await win.getByLabel(/Mask secrets/).check();
     await win.getByRole('button', { name: 'Start session' }).click();
 
     // First request compiles the page: this is the case that needed Next's own request store.
@@ -111,6 +112,10 @@ describe('App Connect with a real Next.js app (next dev)', () => {
     }
     await detail().locator('tr', { hasText: 'Server calls' }).getByRole('button').click();
     await expect(detail().locator('tr', { hasText: 'Triggered by' })).toContainText('/api/products');
+
+    // The server call's response body is captured through Next's own patched fetch.
+    await detail().getByRole('tab', { name: 'Response' }).click();
+    await expect(detail().locator('pre')).toContainText('waitedMs');
   });
 
   it('never shows the upstream API key', async () => {

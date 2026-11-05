@@ -1,6 +1,6 @@
 # @tracethrough/node
 
-Shows the HTTP calls your Node.js server makes (Node `fetch`) in TraceThrough, linked to the browser request that caused them. Metadata only; bodies are never captured.
+Shows the HTTP calls your Node.js server makes (Node `fetch`) in TraceThrough, linked to the browser request that caused them, with headers and request/response bodies.
 
 Part of [TraceThrough](https://github.com/solomonade1/tracethrough), a developer network inspector. Download the app from the [latest release](https://github.com/solomonade1/tracethrough/releases/latest), then follow the steps below. Full guide: [Connect your own app](https://github.com/solomonade1/tracethrough#connect-your-own-app).
 
@@ -36,6 +36,8 @@ In TraceThrough, inspect your app's URL with **This is my app** ticked.
 
 ## Options
 
-`collectorUrl`, `token`, `allowProduction`, `allowTargets` (only record calls to these hosts), `redaction`, `flushIntervalMs`, `maxQueue`, `logger`.
+`collectorUrl`, `token`, `allowProduction`, `allowTargets` (only record calls to these hosts), `redaction` (default `false`: values are sent to the local collector as captured, and the TraceThrough app masks them when the session has **Mask secrets** on; pass a policy to mask in the SDK instead), `captureBodies` (default on; `TRACETHROUGH_CAPTURE_BODIES=0` turns it off), `maxBodyBytes` (preview size per body, default 64 KB, max 512 KB), `flushIntervalMs`, `maxQueue`, `logger`.
+
+Body capture wraps `globalThis.fetch` and reads responses from a clone, so your code still receives the full body. Streamed (`text/event-stream`) and binary bodies are reported without being read.
 
 Requires Node.js 20+. Supports Node `fetch` (undici); not yet `node:http`/`https` clients or Axios.

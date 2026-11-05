@@ -7,6 +7,7 @@ export function Home() {
   const status = useInspector((s) => s.status);
   const [url, setUrl] = useState('https://');
   const [connect, setConnect] = useState(false);
+  const [mask, setMask] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [env, setEnv] = useState<AppEnvironment | undefined>();
   const starting = status.state === 'starting';
@@ -20,7 +21,7 @@ export function Home() {
     e.preventDefault();
     setError(undefined);
     useInspector.getState().reset();
-    const result = await window.tracethrough.startSession(url.trim(), { connect });
+    const result = await window.tracethrough.startSession(url.trim(), { connect, mask });
     if (!result.ok) setError(result.error);
   }
 
@@ -36,7 +37,7 @@ export function Home() {
         <h2 id="inspect-title">Inspect URL</h2>
         <p className="muted">
           Opens the site in an isolated browser with a fresh profile. Browse normally; every request the browser makes
-          streams in here with secrets masked.
+          streams in here with its full headers, cookies and bodies.
         </p>
         <form onSubmit={start} className="url-form">
           <label htmlFor="target-url" className="sr-only">
@@ -63,6 +64,13 @@ export function Home() {
           <span>
             This is my app: link server calls reported by App Connect (adds a <code>traceparent</code> header to requests
             to this origin only)
+          </span>
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={mask} onChange={(e) => setMask(e.target.checked)} />
+          <span>
+            Mask secrets: hide cookies, tokens, API keys and sensitive body fields (use this before screenshots or sharing
+            an export)
           </span>
         </label>
         {(error ?? status.error) && (

@@ -13,8 +13,8 @@ export interface SessionHostOptions {
 type Send = (channel: string, payload: unknown) => void;
 
 /**
- * Owns the single capture session for a window and streams coalesced, already-redacted
- * updates to the renderer. Raw traffic never crosses this boundary.
+ * Owns the single capture session for a window and streams coalesced updates to the renderer,
+ * masked or exactly as captured depending on the session's `mask` option.
  */
 export class SessionHost {
   #session: CaptureSession | undefined;
@@ -42,17 +42,20 @@ export class SessionHost {
       throw err;
     }
     if (this.#status.state === 'starting') return { ok: false, error: 'A session is already starting' };
-    const connect = !!(options && typeof options === 'object' && (options as Partial<StartOptions>).connect === true);
-    const connectedOrigin = connect ? target.origin : undefined;
+    const opts = options && typeof options === 'object' ? (options as Partial<StartOptions>) : {};
+    const connectedOrigin = opts.connect === true ? target.origin : undefined;
+    const masked = opts.mask === true;
 
     await this.#disposeSession();
-    this.#setStatus({ state: 'starting', url, connectedOrigin, dropped: 0 });
+    this.#setStatus({ state: 'starting', url, connectedOrigin, masked, dropped: 0 });
     try {
       const session = await CaptureSession.start({
         url,
         headless: this.opts.headless,
         channel: this.opts.channel,
         connectedOrigin,
+        // Masking off keeps cookies, tokens and bodies exactly as captured (default policy otherwise).
+        redaction: masked ? undefined : false,
       });
       this.#session = session;
       // Exchanges captured during start() (the initial navigation) predate these listeners.
@@ -68,7 +71,15 @@ export class SessionHost {
         this.#flush();
         this.#setStatus({ ...this.#status, state: 'stopped', dropped: session.buffer.dropped });
       });
-      this.#setStatus({ state: 'recording', sessionId: session.id, url, channel: session.channel, connectedOrigin, dropped: 0 });
+      this.#setStatus({
+        state: 'recording',
+        sessionId: session.id,
+        url,
+        channel: session.channel,
+        connectedOrigin,
+        masked: session.masking,
+        dropped: 0,
+      });
       return { ok: true };
     } catch (err) {
       const error = (err as Error).message;
@@ -106,12 +117,20 @@ export class SessionHost {
     return { upserts: this.#session?.buffer.all() ?? [], removed: [] };
   }
 
-  /** Serialized export of the current (already redacted) buffer, or undefined when empty. */
+  /** True when the current session masks secrets (exports then carry the sanitized warning). */
+  get masked(): boolean {
+    return this.#session?.masking ?? true;
+  }
+
+  /** Serialized export of the current buffer (masked or as captured, per session), or undefined when empty. */
   exportData(format: ExportFormat): string | undefined {
     const session = this.#session;
     if (!session || session.buffer.size === 0) return undefined;
     const events = session.buffer.all();
-    const doc = format === 'har' ? toHar(events, this.opts.appVersion) : toSessionExport(session.id, events, session.buffer.dropped);
+    const doc =
+      format === 'har'
+        ? toHar(events, this.opts.appVersion, session.masking)
+        : toSessionExport(session.id, events, session.buffer.dropped, session.masking);
     return JSON.stringify(doc, null, 2);
   }
 

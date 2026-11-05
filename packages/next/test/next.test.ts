@@ -79,7 +79,8 @@ describe('@tracethrough/next', () => {
     );
     const e = await eventFor('case=deferred');
     expect(e.traceId).toBe(ctx.traceId);
-    expect(e.handler).toBe('/products?page=2&token=[REDACTED]');
+    // Sent as captured; the TraceThrough app masks it only when the session has "Mask secrets" on.
+    expect(e.handler).toBe('/products?page=2&token=abc');
   });
 
   it("prefers Next's store over the SDK's own context when they disagree", async () => {

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BrowserWindow, app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { BROWSER_LABELS, findBrowsers, type BrowserChannel } from '@tracethrough/capture';
-import { EXPORT_WARNING } from '@tracethrough/core';
+import { exportWarning } from '@tracethrough/core';
 import { IPC, type ExportFormat, type ExportResult } from '../shared/api';
 import { ConnectService } from './connect';
 import { SessionHost } from './session-host';
@@ -66,15 +66,16 @@ function handle(channel: string, fn: (...args: unknown[]) => unknown) {
 async function exportSession(format: unknown): Promise<ExportResult> {
   if (format !== 'har' && format !== 'json') throw new Error('Unknown export format');
   const data = host?.exportData(format as ExportFormat);
-  if (!data || !win) return { saved: false };
+  if (!data || !win || !host) return { saved: false };
 
+  const masked = host.masked;
   const confirm = await dialog.showMessageBox(win, {
     type: 'warning',
     buttons: ['Export', 'Cancel'],
-    defaultId: 0,
+    defaultId: masked ? 0 : 1,
     cancelId: 1,
-    message: 'Export sanitized session?',
-    detail: EXPORT_WARNING,
+    message: masked ? 'Export sanitized session?' : 'Export session with unmasked secrets?',
+    detail: exportWarning(masked),
   });
   if (confirm.response !== 0) return { saved: false };
 

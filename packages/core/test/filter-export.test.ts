@@ -106,3 +106,12 @@ describe('toHar', () => {
     expect(toSessionExport('s1', [ev()], 3)).toMatchObject({ format: 'tracethrough-session', version: 1, sessionId: 's1', droppedEvents: 3 });
   });
 });
+
+describe('exports with masking off', () => {
+  it('say so in the HAR comment and the session export', () => {
+    expect(toHar([], '1.0.0').log.comment).toBe(EXPORT_WARNING);
+    expect(toHar([], '1.0.0', false).log.comment).toContain('Masking was off');
+    expect(toSessionExport('s', [], 0).masked).toBe(true);
+    expect(toSessionExport('s', [], 0, false).masked).toBe(false);
+  });
+});

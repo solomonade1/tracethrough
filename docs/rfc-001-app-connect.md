@@ -10,6 +10,7 @@ When a developer **owns** the app being inspected, show the HTTP calls its Node 
 
 - Edge runtime, Bun, Deno; non-Node languages.
 - Server-side request/response **bodies** (metadata only — PRD §8 "payload capture disabled unless temporarily authorized").
+  _Changed 5 Nov 2026:_ the SDK now captures body previews (64 KB default) by wrapping `globalThis.fetch`, and sends values unmasked to the local collector. Masking is a per-session choice in the app ("Mask secrets", off by default).
 - `node:http`/`https` client, Axios-over-http adapters (Axios on Node uses `http`). Follow-up once fetch is solid.
 - Remote/hosted collection, RBAC, debug grants. v1 collector is loopback-only.
 - Component / Server Action attribution.

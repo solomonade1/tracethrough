@@ -45,6 +45,8 @@ describe('TraceThrough desktop', () => {
 
   it('starts a session and streams requests live (UI-01)', async () => {
     await win.locator('#target-url').fill(`${server.url}/basic`);
+    // The masking checks below need "Mask secrets"; the unmasked default is covered at the end.
+    await win.getByLabel(/Mask secrets/).check();
     await win.getByRole('button', { name: 'Start session' }).click();
     await expect(win.getByRole('status')).toHaveText(/Recording/, { timeout: 20_000 }); // includes browser launch
     await expect(rowFor('/api/slow')).toBeVisible({ timeout: 20_000 });
@@ -117,5 +119,31 @@ describe('TraceThrough desktop', () => {
     await win.getByRole('button', { name: '■ Stop' }).click();
     await expect(win.getByRole('status')).toHaveText(/Stopped/);
     await snap('04-stopped');
+  });
+
+  it('shows cookies, tokens and bodies as captured when masking is off (the default)', async () => {
+    win.once('dialog', (d) => void d.accept().catch(() => {})); // "Start a new session?" confirmation
+    await win.getByRole('button', { name: 'New session' }).click();
+    await win.locator('#target-url').fill(`${server.url}/basic`);
+    await expect(win.getByLabel(/Mask secrets/)).not.toBeChecked();
+    await win.getByRole('button', { name: 'Start session' }).click();
+    await expect(win.getByRole('status')).toHaveText(/Recording/, { timeout: 20_000 });
+    await expect(win.locator('.banner')).toContainText('Masking is off');
+
+    await win.getByRole('searchbox', { name: 'Search requests' }).fill('/api/echo');
+    await expect(rows()).toHaveCount(1, { timeout: 20_000 });
+    await rows().first().click();
+    const detail = win.getByRole('complementary', { name: 'Request details' });
+    await detail.getByRole('tab', { name: 'Headers' }).click();
+    await expect(detail.locator('tr', { hasText: 'authorization' })).toContainText(`Bearer ${CANARY}`);
+    await detail.getByRole('tab', { name: 'Request' }).click();
+    await expect(detail.locator('pre')).toContainText(CANARY);
+
+    await win.getByRole('searchbox', { name: 'Search requests' }).fill('/api/set-cookie');
+    await rows().first().click();
+    await detail.getByRole('tab', { name: 'Headers' }).click();
+    await expect(detail.locator('tr', { hasText: 'set-cookie' }).first()).toContainText(`sid=${CANARY}`);
+    await snap('05-unmasked-headers');
+    await win.getByRole('button', { name: '■ Stop' }).click();
   });
 });

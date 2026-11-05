@@ -81,6 +81,7 @@ describe('App Connect end to end', () => {
   it('links server-side fetches to the browser request that caused them (US-05, COR-01)', async () => {
     await win.locator('#target-url').fill(`${sampleUrl}/`);
     await win.getByLabel(/This is my app/).check();
+    await win.getByLabel(/Mask secrets/).check();
     await win.getByRole('button', { name: 'Start session' }).click();
     // Session start includes launching a browser.
     await expect(win.getByText('App Connect', { exact: true })).toBeVisible({ timeout: 20_000 });
@@ -110,7 +111,23 @@ describe('App Connect end to end', () => {
     await win.getByRole('button', { name: 'Reset' }).click();
   });
 
-  it('never shows the upstream API key', async () => {
+  it('never shows the upstream API key when masking is on', async () => {
     expect(await win.content()).not.toContain(SECRET_KEY);
+  });
+
+  it('shows server-side URLs and response bodies as captured when masking is off', async () => {
+    win.once('dialog', (d) => void d.accept().catch(() => {})); // "Start a new session?" confirmation
+    await win.getByRole('button', { name: 'New session' }).click();
+    await win.locator('#target-url').fill(`${sampleUrl}/`);
+    await win.getByLabel(/This is my app/).check();
+    await win.getByRole('button', { name: 'Start session' }).click();
+    await expect(win.getByText('App Connect', { exact: true })).toBeVisible({ timeout: 20_000 });
+
+    const ok = serverRows().filter({ hasText: '/api/ok' });
+    await expect(ok).toContainText(`api_key=${SECRET_KEY}`, { timeout: 20_000 });
+    await ok.click();
+    await detail().getByRole('tab', { name: 'Response' }).click();
+    await expect(detail().locator('pre')).toContainText('accessToken');
+    await win.getByRole('button', { name: '■ Stop' }).click();
   });
 });

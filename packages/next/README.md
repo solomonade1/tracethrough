@@ -1,6 +1,6 @@
 # @tracethrough/next
 
-Shows the HTTP calls your Next.js server makes (SSR data fetches, route handlers, server actions) in TraceThrough, linked to the browser request that caused them. Node runtime only. Metadata only; bodies are never captured.
+Shows the HTTP calls your Next.js server makes (SSR data fetches, route handlers, server actions) in TraceThrough, linked to the browser request that caused them. Node runtime only. Includes headers and request/response bodies (previews up to 64 KB each).
 
 Part of [TraceThrough](https://github.com/solomonade1/tracethrough), a developer network inspector. Download the app from the [latest release](https://github.com/solomonade1/tracethrough/releases/latest), then follow the steps below. Full guide: [Connect your own app](https://github.com/solomonade1/tracethrough#connect-your-own-app).
 

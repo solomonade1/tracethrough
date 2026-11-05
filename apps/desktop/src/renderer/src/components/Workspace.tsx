@@ -45,6 +45,11 @@ export function Workspace() {
           {status.url}
         </span>
         {status.channel && <span className="chip static">{status.channel}</span>}
+        {status.masked && (
+          <span className="chip static" title="Cookies, tokens, API keys and sensitive body fields are masked">
+            Masked
+          </span>
+        )}
         {status.connectedOrigin && (
           <span className="chip static connected" title="Server events from App Connect are linked by trace context">
             App Connect
@@ -81,7 +86,9 @@ export function Workspace() {
             here.
           </>
         )}{' '}
-        Secrets are masked before anything is stored or exported.
+        {status.masked
+          ? 'Secrets are masked before anything is stored or exported.'
+          : 'Masking is off: cookies, tokens and bodies are shown exactly as captured, and exports include them.'}
         {notice && <span className="notice"> {notice}</span>}
       </div>
 
