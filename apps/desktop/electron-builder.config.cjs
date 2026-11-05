@@ -1,7 +1,12 @@
 // Packaging config for electron-builder (`pnpm package:win`). CommonJS so electron-builder can load it directly.
+const fs = require('node:fs');
 const path = require('node:path');
 
 const electronPkg = require.resolve('electron/package.json');
+// Electron downloads its binary lazily, on the first `require('electron')`, not on install. A fresh checkout
+// (like the release workflow) has no dist/ yet, so only reuse it when it exists; otherwise electron-builder
+// downloads and checksum-verifies the Electron build for the target platform itself.
+const localElectronDist = path.join(path.dirname(electronPkg), 'dist');
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
@@ -15,7 +20,7 @@ module.exports = {
   // Playwright launches browser processes and reads its own files at runtime; keep it outside the asar.
   asarUnpack: ['node_modules/playwright/**', 'node_modules/playwright-core/**'],
   // Reuse the Electron binary already installed (and checksum-verified) instead of downloading it again.
-  electronDist: path.join(path.dirname(electronPkg), 'dist'),
+  electronDist: fs.existsSync(localElectronDist) ? localElectronDist : undefined,
   electronVersion: require(electronPkg).version,
   // No native modules to rebuild.
   npmRebuild: false,
