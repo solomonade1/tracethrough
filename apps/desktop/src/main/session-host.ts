@@ -8,6 +8,9 @@ export interface SessionHostOptions {
   /** How long updates are coalesced before being sent to the renderer. */
   flushIntervalMs?: number;
   appVersion?: string;
+  /** Capture-session retention limits (see CaptureOptions); defaults apply when omitted. */
+  maxEvents?: number;
+  maxBufferBytes?: number;
 }
 
 type Send = (channel: string, payload: unknown) => void;
@@ -22,6 +25,8 @@ export class SessionHost {
   readonly #pending = new Map<string, NetworkEvent>();
   readonly #removed: string[] = [];
   #timer: ReturnType<typeof setTimeout> | undefined;
+  /** Bumped by every start and dispose, so a startup that finishes late can tell it was superseded. */
+  #generation = 0;
 
   constructor(
     private readonly send: Send,
@@ -47,30 +52,31 @@ export class SessionHost {
     const masked = opts.mask === true;
 
     await this.#disposeSession();
+    const generation = ++this.#generation;
     this.#setStatus({ state: 'starting', url, connectedOrigin, masked, dropped: 0 });
+    let session: CaptureSession | undefined;
     try {
-      const session = await CaptureSession.start({
+      session = await CaptureSession.create({
         url,
         headless: this.opts.headless,
         channel: this.opts.channel,
         connectedOrigin,
+        maxEvents: this.opts.maxEvents,
+        maxBufferBytes: this.opts.maxBufferBytes,
         // Masking off keeps cookies, tokens and bodies exactly as captured (default policy otherwise).
         redaction: masked ? undefined : false,
       });
-      this.#session = session;
-      // Exchanges captured during start() (the initial navigation) predate these listeners.
-      for (const e of session.buffer.all()) this.#queue(e);
-      session.on('event', (e) => this.#queue(e));
-      session.on('evicted', (id) => {
-        this.#pending.delete(id);
-        this.#removed.push(id);
-        this.#scheduleFlush();
-      });
-      session.on('closed', () => {
-        if (this.#session !== session) return;
-        this.#flush();
-        this.#setStatus({ ...this.#status, state: 'stopped', dropped: session.buffer.dropped });
-      });
+      // dispose() ran while the browser was launching: this session was never adopted, so close it.
+      if (generation !== this.#generation) {
+        await session.stop();
+        return { ok: false, error: 'Session start was cancelled' };
+      }
+      // Adopt the session and attach its listeners before the first navigation, so server events
+      // sent while a slow document is still being served (SSR) are already accepted and linked.
+      this.#adopt(session);
+      await session.navigate(url);
+      // Stopped or replaced while the document was loading: never reactivate it.
+      if (this.#session !== session || session.closed) return { ok: false, error: 'Session was stopped while starting' };
       this.#setStatus({
         state: 'recording',
         sessionId: session.id,
@@ -78,23 +84,45 @@ export class SessionHost {
         channel: session.channel,
         connectedOrigin,
         masked: session.masking,
-        dropped: 0,
+        dropped: session.buffer.dropped,
       });
       return { ok: true };
     } catch (err) {
       const error = (err as Error).message;
-      this.#setStatus({ state: 'idle', dropped: 0, error });
+      if (session) {
+        if (this.#session === session) this.#session = undefined;
+        await session.stop();
+      }
+      if (generation === this.#generation) this.#setStatus({ state: 'idle', dropped: 0, error });
       return { ok: false, error };
     }
   }
 
+  #adopt(session: CaptureSession) {
+    this.#session = session;
+    session.on('event', (e) => this.#queue(e));
+    session.on('evicted', (id) => {
+      this.#pending.delete(id);
+      this.#removed.push(id);
+      this.#scheduleFlush();
+    });
+    session.on('closed', () => {
+      if (this.#session !== session) return;
+      this.#flush();
+      this.#setStatus({ ...this.#status, state: 'stopped', dropped: session.buffer.dropped });
+    });
+  }
+
   /**
-   * Routes App Connect events into the recording session. Returns how many were accepted; events
-   * arriving with no recording session are ignored (the SDK stays enabled for the next session).
+   * Routes App Connect events into the current session, including while its first page is still
+   * loading. Returns how many were accepted; events arriving with no active session are ignored
+   * (the SDK stays enabled for the next session). There is deliberately no queue for them, so an
+   * event can never be attached to a later, unrelated session.
    */
   ingest(events: readonly ServerEventInput[]): number {
+    // The session is adopted before its first navigation, so this also covers the `starting` phase.
     const session = this.#session;
-    if (!session || this.#status.state !== 'recording') return 0;
+    if (!session || session.closed) return 0;
     let accepted = 0;
     for (const e of events) if (session.ingestServerEvent(e)) accepted++;
     return accepted;
@@ -139,6 +167,7 @@ export class SessionHost {
   }
 
   async #disposeSession() {
+    this.#generation++;
     const old = this.#session;
     this.#session = undefined;
     clearTimeout(this.#timer);

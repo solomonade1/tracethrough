@@ -20,6 +20,8 @@
     "test:e2e:next": "pnpm --filter @tracethrough/desktop build && vitest run --config apps/desktop/vitest.next.config.ts",
     "example:next": "pnpm --filter @tracethrough/example-next-app dev",
     "smoke:next": "tsx scripts/next-smoke.ts",
+    "smoke:packages": "tsx scripts/smoke-packages.ts",
+    "test:next-matrix": "vitest run --config vitest.next-matrix.config.ts",
     "package:win": "pnpm --filter @tracethrough/desktop dist:win",
     "build:packages": "pnpm --filter @tracethrough/core --filter @tracethrough/node --filter @tracethrough/next build",
     "changeset": "changeset",

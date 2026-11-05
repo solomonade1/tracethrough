@@ -5,9 +5,13 @@ import {
   DEFAULT_BODY_LIMITS,
   DEFAULT_REDACTION_POLICY,
   SessionBuffer,
+  applyBodyPolicy,
   buildBodyPreview,
   createRedactor,
   formatTraceparent,
+  isMultipartMime,
+  isTextualMime,
+  omitsMultipart,
   newTraceContext,
   normalizeMime,
   unavailableBody,
@@ -22,6 +26,7 @@ import {
   type TraceContext,
 } from '@tracethrough/core';
 import { findBrowsers, type BrowserChannel } from './browsers.ts';
+import { Limiter } from './limiter.ts';
 
 export interface CaptureOptions {
   url: string;
@@ -32,10 +37,22 @@ export interface CaptureOptions {
   /** Masking policy; `false` keeps headers, URLs and bodies exactly as captured. Default: masked. */
   redaction?: RedactionPolicy | false;
   bodyLimits?: BodyLimits;
-  /** Responses whose Content-Length exceeds this are not read at all. */
+  /**
+   * Responses whose declared size (Content-Length, or the transfer size the browser reports)
+   * exceeds this are not read at all. Playwright cannot cap a read in progress: a body of unknown
+   * or understated size is still fetched whole and only then discarded, so this limit is a
+   * pre-read filter, not a hard memory bound.
+   */
   maxBodyReadBytes?: number;
   /** Ring-buffer capacity; older exchanges are dropped (and counted) beyond this. */
   maxEvents?: number;
+  /**
+   * Retention budget in estimated serialized event bytes (default 128 MiB). Oldest exchanges are
+   * dropped (and counted) beyond it. This bounds what the session keeps, not process memory.
+   */
+  maxBufferBytes?: number;
+  /** How many response bodies may be fetched from the browser at once (default 4). */
+  maxConcurrentBodyReads?: number;
   /**
    * App Connect: an origin the developer owns (e.g. "http://localhost:3000"). Requests to it get a
    * fresh W3C `traceparent` so server events can be linked. Never applied to other origins.
@@ -123,6 +140,31 @@ function describeFailure(errorText: string): string {
   return FAILURE_MESSAGES.find(([re]) => re.test(errorText))?.[1] ?? errorText;
 }
 
+function headerValue(headers: Record<string, string> | undefined, name: string): string | undefined {
+  if (!headers) return undefined;
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === name);
+  return key === undefined ? undefined : headers[key];
+}
+
+/** Replaces a body's preview, leaving an already-omitted body (no preview) exactly as it is. */
+function withPreview(body: BodyPreview, preview: string | undefined): BodyPreview {
+  return body.preview === undefined ? body : { ...body, preview };
+}
+
+/**
+ * Normalizes the version string Playwright reports ("HTTP/1.1", "HTTP/2.0", "h3"…) to the
+ * event's lower-case ALPN-style protocol id. Unrecognized or empty values are dropped rather
+ * than guessed.
+ */
+export function toProtocol(httpVersion: string | undefined): string | undefined {
+  const v = httpVersion?.trim().toLowerCase();
+  if (!v) return undefined;
+  if (v === 'h2' || v === 'http/2' || v === 'http/2.0') return 'h2';
+  if (v === 'h3' || v === 'http/3' || v === 'http/3.0') return 'h3';
+  if (v === 'http/1.1' || v === 'http/1.0' || v === 'http/0.9') return v;
+  return undefined;
+}
+
 function hostnameOf(url: string): string {
   try {
     return new URL(url).hostname;
@@ -144,6 +186,7 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
   readonly #redactor: Redactor;
   readonly #bodyLimits: BodyLimits;
   readonly #maxBodyReadBytes: number;
+  readonly #bodyReads: Limiter;
   readonly #ids = new WeakMap<Request, string>();
   readonly #startedAt = new WeakMap<Request, number>();
   readonly #navigationByPage = new WeakMap<Page, string>();
@@ -162,7 +205,8 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
     this.#redactor = createRedactor(opts.redaction ?? DEFAULT_REDACTION_POLICY);
     this.#bodyLimits = opts.bodyLimits ?? DEFAULT_BODY_LIMITS;
     this.#maxBodyReadBytes = opts.maxBodyReadBytes ?? 10 * 1024 * 1024;
-    this.buffer = new SessionBuffer(opts.maxEvents ?? 10_000);
+    this.#bodyReads = new Limiter(opts.maxConcurrentBodyReads ?? 4);
+    this.buffer = new SessionBuffer(opts.maxEvents ?? 10_000, opts.maxBufferBytes);
 
     context.on('request', (req) => this.#onRequest(req));
     context.on('requestfinished', (req) => this.#track(this.#onFinished(req)));
@@ -175,18 +219,48 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
     browser.on('disconnected', () => void this.stop());
   }
 
-  static async start(opts: CaptureOptions): Promise<CaptureSession> {
-    const target = validateTargetUrl(opts.url);
+  /**
+   * Launches the isolated browser and opens a blank page, without navigating. Capture is already
+   * active, so a caller can attach its listeners (and start accepting App Connect events) before
+   * calling {@link navigate}. Disposes the browser if setup fails.
+   */
+  static async create(opts: CaptureOptions): Promise<CaptureSession> {
+    validateTargetUrl(opts.url);
     const headless = opts.headless ?? false;
     const { browser, channel } = await launchBrowser(headless, opts.channel);
-    // A fresh context never shares cookies/storage with the user's own browser profile.
-    const context = await browser.newContext({ serviceWorkers: 'allow', viewport: headless ? undefined : null });
-    const session = new CaptureSession(browser, context, channel, opts);
-    const origin = session.connectedOrigin;
-    if (origin) await context.route((url) => url.origin === origin, (route) => session.#injectTrace(route));
-    session.#page = await context.newPage();
-    // Navigation failures (DNS, TLS…) are captured as failed events, so they do not reject start().
-    await session.#page.goto(target.href, { waitUntil: 'commit' }).catch(() => {});
+    try {
+      // A fresh context never shares cookies/storage with the user's own browser profile.
+      const context = await browser.newContext({ serviceWorkers: 'allow', viewport: headless ? undefined : null });
+      const session = new CaptureSession(browser, context, channel, opts);
+      const origin = session.connectedOrigin;
+      if (origin) await context.route((url) => url.origin === origin, (route) => session.#injectTrace(route));
+      session.#page = await context.newPage();
+      return session;
+    } catch (err) {
+      await browser.close().catch(() => {});
+      throw err;
+    }
+  }
+
+  /**
+   * Starts the initial navigation (resolves once the document response has started). Navigation
+   * failures (DNS, TLS…) are captured as failed events, so they do not reject. A no-op once stopped.
+   */
+  async navigate(url: string): Promise<void> {
+    const target = validateTargetUrl(url);
+    if (this.#closed) return;
+    await this.page.goto(target.href, { waitUntil: 'commit' }).catch(() => {});
+  }
+
+  /** {@link create} followed by {@link navigate}. Stops the session if navigation cannot start. */
+  static async start(opts: CaptureOptions): Promise<CaptureSession> {
+    const session = await CaptureSession.create(opts);
+    try {
+      await session.navigate(opts.url);
+    } catch (err) {
+      await session.stop();
+      throw err;
+    }
     return session;
   }
 
@@ -230,8 +304,11 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
     const url = r.url(input.urlSanitized);
     const reqHeaders = input.requestHeadersSanitized ? r.headers(input.requestHeadersSanitized) : undefined;
     const resHeaders = input.responseHeadersSanitized ? r.headers(input.responseHeadersSanitized) : undefined;
-    const reqBody = input.requestBody?.preview !== undefined ? r.body(input.requestBody.preview, input.requestBody.mime) : undefined;
-    const resBody = input.responseBody?.preview !== undefined ? r.body(input.responseBody.preview, input.responseBody.mime) : undefined;
+    // Multipart previews are dropped before anything else sees them (same policy as browser capture).
+    const reqSource = applyBodyPolicy(input.requestBody, r, headerValue(input.requestHeadersSanitized, 'content-type'));
+    const resSource = applyBodyPolicy(input.responseBody, r, headerValue(input.responseHeadersSanitized, 'content-type'));
+    const reqBody = reqSource?.preview !== undefined ? r.body(reqSource.preview, reqSource.mime) : undefined;
+    const resBody = resSource?.preview !== undefined ? r.body(resSource.preview, resSource.mime) : undefined;
     const space = input.handler?.indexOf(' ') ?? -1;
     const handler =
       input.handler && space > 0
@@ -248,8 +325,8 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
       domain: hostnameOf(url.value) || input.domain,
       requestHeadersSanitized: reqHeaders?.value,
       responseHeadersSanitized: resHeaders?.value,
-      requestBody: input.requestBody && { ...input.requestBody, preview: reqBody?.value },
-      responseBody: input.responseBody && { ...input.responseBody, preview: resBody?.value },
+      requestBody: reqSource && withPreview(reqSource, reqBody?.value),
+      responseBody: resSource && withPreview(resSource, resBody?.value),
       handler,
       error,
       isNavigation: false,
@@ -289,8 +366,7 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
 
   #emit(event: NetworkEvent) {
     if (this.#closed) return;
-    const evicted = this.buffer.upsert(event);
-    if (evicted) this.emit('evicted', evicted);
+    for (const id of this.buffer.upsert(event)) this.emit('evicted', id);
     this.emit('event', event);
   }
 
@@ -369,8 +445,13 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
     } else if (response.status() >= 300 && response.status() < 400 && rawResHeaders['location']) {
       responseBody = { body: unavailableBody('redirect', normalizeMime(rawResHeaders['content-type'])), redacted: false };
     } else {
-      responseBody = await this.#readBody(response, rawResHeaders);
+      responseBody = await this.#readBody(req, response, rawResHeaders);
     }
+
+    // Playwright answers "HTTP/1.1" when the browser did not say, and a service worker's reply is
+    // not the network exchange, so only a plain network response counts as an observation.
+    const protocol =
+      response && !response.fromServiceWorker() ? toProtocol(await response.httpVersion().catch(() => undefined)) : undefined;
 
     const timing = req.timing();
     const durationMs =
@@ -383,6 +464,7 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
       statusText: response?.statusText(),
       durationMs,
       timing: toTiming(timing),
+      protocol,
       requestHeadersSanitized: reqHeaders.value,
       responseHeadersSanitized: resHeaders?.value,
       responseBody: responseBody.body,
@@ -391,18 +473,25 @@ export class CaptureSession extends EventEmitter<{ event: [NetworkEvent]; evicte
     });
   }
 
-  async #readBody(response: Response, headers: Record<string, string>): Promise<{ body: BodyPreview; redacted: boolean }> {
+  async #readBody(req: Request, response: Response, headers: Record<string, string>): Promise<{ body: BodyPreview; redacted: boolean }> {
     const contentType = headers['content-type'];
     const mime = normalizeMime(contentType);
     if (mime === 'text/event-stream') return { body: unavailableBody('streamed', mime), redacted: false };
 
     const declared = Number(headers['content-length']);
-    if (Number.isFinite(declared) && declared > this.#maxBodyReadBytes) {
-      return { body: unavailableBody('too-large', mime, declared), redacted: false };
-    }
+    const declaredSize = headers['content-length'] !== undefined && Number.isFinite(declared) ? declared : undefined;
+    // Outcomes decided by the headers alone never need the bytes, so they are not fetched.
+    if (omitsMultipart(this.#redactor, contentType)) return { body: unavailableBody('omitted-by-policy', mime, declaredSize), redacted: false };
+    if (mime && !isTextualMime(mime) && !isMultipartMime(mime)) return { body: unavailableBody('binary', mime, declaredSize), redacted: false };
+
+    // Advisory pre-read check: the browser knows the transfer size once the request has finished.
+    const transferred = await req.sizes().then((s) => s.responseBodySize, () => -1);
+    const knownSize = Math.max(declaredSize ?? -1, transferred);
+    if (knownSize > this.#maxBodyReadBytes) return { body: unavailableBody('too-large', mime, knownSize), redacted: false };
+
     let bytes: Buffer;
     try {
-      bytes = await response.body();
+      bytes = await this.#bodyReads.run(() => response.body());
     } catch {
       return { body: unavailableBody('read-failed', mime), redacted: false };
     }

@@ -15,8 +15,17 @@ permissions:
   id-token: write       # npm provenance (and trusted publishing once configured on npmjs.com)
 
 jobs:
+  # The commit that is about to be versioned or published is checked again, including a clean-consumer
+  # install of the packed tarballs, so a green PR is not the only evidence behind a publish.
+  validate:
+    name: Validate release commit
+    uses: ./.github/workflows/validate.yml
+    permissions:
+      contents: read
+
   release:
     name: Version or publish
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -32,7 +41,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Tests and typecheck already passed on the PR (ci.yml, required before merge), so they are not repeated here.
+      # Typecheck, tests and the packed-package smoke test ran in the validate job above, on this exact commit.
       # With pending changesets: opens/updates the "Version Packages" PR.
       # When that PR is merged (no pending changesets): builds and publishes to npm.
       - uses: changesets/action@v2

@@ -2,7 +2,7 @@
   "name": "@tracethrough/desktop",
   "productName": "TraceThrough",
   "version": "0.2.0",
-  "description": "Developer network inspector: browse a site in an isolated browser and inspect redacted traffic.",
+  "description": "Developer network inspector: browse a site in an isolated browser and inspect its traffic, as captured or with secrets masked.",
   "author": "TraceThrough",
   "private": true,
   "type": "module",

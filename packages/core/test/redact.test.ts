@@ -147,3 +147,19 @@ describe('masking off', () => {
     expect(off.body(json, 'application/json')).toEqual({ value: json, redacted: false });
   });
 });
+
+describe('performance on large text bodies', () => {
+  it('scans a long run of word characters in linear time', () => {
+    const blob = 'A'.repeat(300_000);
+    const started = performance.now();
+    expect(r.body(blob, 'text/plain').value).toBe(blob);
+    // Quadratic behaviour took tens of seconds here; linear takes milliseconds.
+    expect(performance.now() - started).toBeLessThan(2000);
+  });
+
+  it('still masks assignments to sensitive keys next to such a blob', () => {
+    const out = r.body(`${'B'.repeat(50_000)} apiKey: "k-123" token='t-456'`, 'text/plain').value;
+    expect(out).toContain(`apiKey: "${MASK}"`);
+    expect(out).toContain(`token='${MASK}'`);
+  });
+});

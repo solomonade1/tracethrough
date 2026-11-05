@@ -22,10 +22,12 @@ pnpm typecheck
 
 ## Ground rules that every change must keep
 
-- Redact before anything is buffered, stored, exported or displayed.
+- **Masking is optional, and both modes are supported.** Raw capture is intentional: a session without **Mask secrets** keeps headers, URLs and bodies exactly as captured, and the SDK sends values unmasked by default. Unmasked credentials in such a session are expected behavior, not a bug. Do not "fix" them, and do not change either default (the app starts unmasked; `redaction` in the SDK defaults to `false`).
+- **With masking enabled, the session's masking policy is applied before anything is buffered, displayed or exported.** That covers every way data gets in (browser capture and SDK events re-ingested by the app) and every way it gets out (the UI, JSON and HAR export). A path that lets a secret through despite masking being on is a defect; see [SECURITY.md](SECURITY.md). When masking is on and a body cannot be masked reliably (multipart), it is omitted with `omitted-by-policy` rather than shown.
+- Masking is defense in depth, not a guarantee. Never describe it as one in code, docs or UI.
 - Label every event `browser` or `server`; never claim to see a site's server-side calls without App Connect.
 - Never fabricate bodies; say why one is unavailable.
-- No telemetry and no network egress of captured data.
+- Captured data stays local: no telemetry and no network egress of captured data. (Inspecting a site still makes the normal network requests that site needs; "local-only" is about what happens to the captured data.)
 
 Never put real tokens, cookies or captured traffic in code, tests, issues or screenshots.
 

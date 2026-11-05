@@ -1,0 +1,24 @@
+{
+  "name": "@tracethrough/example-next-app-15",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Next.js 15.5 twin of examples/next-app, used to test the App Connect adapter across the documented support matrix. Keep its app/ in step with examples/next-app/app.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@tracethrough/next": "workspace:*",
+    "next": "15.5.29",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "~5.9.3"
+  }
+}

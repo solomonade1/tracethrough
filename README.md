@@ -2,7 +2,7 @@
 
 A developer network inspector. Enter a URL, browse it in an isolated Chrome or Edge window, and inspect the traffic: full headers, cookies, tokens and bodies, as captured. If you own the app, connect it and TraceThrough also shows the HTTP calls your **server** makes (for example SSR data fetches), linked to the browser request that caused them.
 
-- **Local-first:** captured traffic never leaves your machine.
+- **Local-first:** captured traffic stays on your machine: it is held in memory and written only when you export it. (The site you inspect still receives the normal requests your browser makes.)
 - **Unmasked by default, masking on request:** you see every value as it was sent. Tick **Mask secrets** before a session to hide tokens, cookies, API keys and passwords from the UI and exports (for screenshots or sharing).
 - **Honest:** every row is labelled **Browser** or **Server**. For sites you don't own you only see browser traffic.
 
@@ -27,7 +27,7 @@ TraceThrough opens sites in **Google Chrome or Microsoft Edge**, which it uses f
 
 ### Unsigned builds
 
-The installers are not code-signed yet, so your OS warns before the first run. This is expected for these builds.
+Installers are unsigned unless a release's notes say otherwise. The release workflow can sign Windows installers and sign and notarize macOS ones when the maintainers configure certificates, and each release's notes list what was *verified on the finished installer* (never merely "configured"). For an installer listed as unsigned, your OS warns before the first run and the steps below apply. Check the download against `SHA256SUMS.txt` either way.
 
 - **Windows:** SmartScreen shows "Windows protected your PC". Click **More info**, then **Run anyway**.
 - **macOS:** open the `.dmg` and drag TraceThrough to Applications. If macOS says the app is damaged or can't be opened, run `xattr -cr /Applications/TraceThrough.app` once, then open it. (Or right-click the app, choose **Open**, then **Open**.)
@@ -46,7 +46,7 @@ The installers are not code-signed yet, so your OS warns before the first run. T
 2. A separate browser window opens with a fresh, empty profile. Browse there as normal.
 3. Every request streams into TraceThrough. Click a row to see its overview, headers, request, response and timing.
 4. Use the search box and the filter chips (status class, type, Browser/Server, method, domain) to narrow the list. Tick **Bodies** to search body previews too.
-5. **Export HAR** or **Export JSON** saves the session. Without **Mask secrets** the file contains live cookies and tokens: treat it as a secret. Sessions live in memory until you export them.
+5. **Export HAR** or **Export JSON** saves the session. Without **Mask secrets** the file contains live cookies and tokens: treat it as a secret. Sessions live in memory until you export them. HAR entries carry the HTTP version the browser reported (`http/1.1`, `h2`, `h3`); when it was not observed (server-side events, older sessions) the entry says `unknown` rather than guessing HTTP/1.1.
 
 Only inspect sites you are authorized to access.
 
@@ -150,23 +150,34 @@ In TraceThrough, enter your app's URL (for example `http://localhost:3000`), **t
 - The collector must be a loopback address (`127.0.0.1` or `localhost`); remote collection is not supported.
 - It is off when `NODE_ENV=production`, unless you opt in.
 - Values only ever go to the local collector. The TraceThrough app masks them when the session has **Mask secrets** ticked, and always forces them to `source: server` whatever the SDK sent.
+- Masking applies to server events as well when it is on: multipart bodies are omitted (`omitted-by-policy`, MIME type and size kept). With the SDK's unmasked default, and with **Mask secrets** off in the app, previews are raw by design.
+- Retained body memory is bounded. The SDK reads at most `maxBodyBytes` of any body (never the whole of a large or endless one), and the app keeps at most 10,000 events and about 128 MiB of event data, oldest first (a size estimate, not a process-memory ceiling). Browser bodies are read at most 4 at a time. Playwright's response API cannot stop a read early, so for browser traffic the limit is applied to what is stored and a size announced in headers is checked before reading; a response that lies about its size can still be read in full once.
 - Body capture wraps `globalThis.fetch` (Node's undici exposes no body bytes to diagnostics channels). Responses are read from a clone, so your code still gets the full body; streamed (`text/event-stream`) and binary bodies are reported, not read.
 
 ### Support matrix
 
-Verified 3 Nov 2026 on Node 22.20, Windows.
+**Automated** (`pnpm test:next-matrix`, the "Next.js matrix" job in CI): the sample app is built and served with real `next dev` and `next start` on Next.js 15.5.29 (TypeScript 5.9) and 16.4.4 (TypeScript 6), and each cell asserts first render, a later render, route handlers, concurrent requests (no request ever inherits another's trace), no invented trace for prerender or cache work, only trace ids the test sent, and the production opt-in. Fallback when Next's internal storage is missing is covered by unit tests (`packages/next/test/storage-fallback.test.ts`).
 
-| | SSR fetch in a page | Fetch in a route handler | First render of a page after compile / boot |
+| Automated | SSR fetch in a page | Fetch in a route handler | First render after compile / boot |
 |---|---|---|---|
-| Plain Node `http` server | n/a | ✅ linked | ✅ linked |
-| Next.js 16.4 `next dev` | ✅ linked | ✅ linked | ✅ linked |
-| Next.js 16.4 `next start` | ✅ linked | ✅ linked | ✅ linked |
-| Next.js 15.5 `next dev` / `next start` | ✅ linked | ✅ linked | ⚠️ shown as "Not linked" |
+| Next.js 16.4.4 `dev` and `start` | linked | linked | linked |
+| Next.js 15.5.29 `dev` and `start` | linked | linked | linked to its own request **or** unlinked; never another's |
+
+**Manual observations** (not covered by CI):
+
+| | Result | Observed |
+|---|---|---|
+| Plain Node `http` server | linked, including the first request | 3 Nov 2026, Node 22.20, Windows (the desktop e2e suite also links a plain Node sample) |
+| Next.js 15.5 `dev` / `start`, first render | shown as "Not linked" | 3 Nov 2026, Node 22.20, Windows |
+| Next.js 15.5.29 `dev` / `start`, first render | linked | 5 Nov 2026, automated run, Windows |
+
+The two Next 15 observations disagree, so the first-render gap stays documented as a limitation: it depends on timing and a reliable fix has not been shown. The adapter only links on an exact trace-id match, so the worst case is an unlinked row, not a wrong link.
 
 Known limitations:
 
 - **Clients:** Node `fetch` (undici) only. Not yet: `node:http`/`https` clients, Axios. The Edge runtime is not supported.
-- **Next.js 15:** the first render of each page after a compile (dev) or server boot (start) runs outside the request's async context, so that render's calls show as unlinked. Next 16 has no gap.
+- **Next.js 15:** the first render of each page after a compile (dev) or server boot (start) can run outside the request's async context, so that render's calls may show as unlinked (see the observations above). Next 16 has no gap.
+- **Next.js internals:** the adapter reads Next's private request store; if a Next release changes or removes it, App Connect degrades to unlinked server rows and never breaks the app. The matrix above is what has been tested; other versions are untested.
 - **Next.js 15 + TypeScript 7:** Next 15 needs TypeScript 6 or earlier.
 - The framework's own calls (Next telemetry, Next dev's version check) appear as unlinked Server rows. Set `NEXT_TELEMETRY_DISABLED=1` to quiet the first.
 
@@ -262,9 +273,15 @@ pnpm typecheck
 pnpm test:e2e
 ```
 
+```bash
+pnpm smoke:packages
+```
+
+`smoke:packages` packs `core`, `node` and `next` as publishing would, installs the tarballs into a clean project outside the workspace and exercises them (nothing is published). `pnpm test:next-matrix` runs the Next.js 15/16 dev and start matrix (slow; `NEXT_MATRIX=15:dev` runs one cell).
+
 `test:e2e` builds the app and drives it with Playwright's Electron support, with capture headless. `pnpm test:e2e:next` runs the same against the Next.js sample. If Electron's postinstall hangs behind a TLS-intercepting proxy, see "Electron binary" in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-CI ([ci.yml](.github/workflows/ci.yml)) runs these on Windows, macOS and Ubuntu for every pull request (required to pass before merging), plus the Next.js e2e on Ubuntu and an unsigned Windows package tested end to end.
+CI ([ci.yml](.github/workflows/ci.yml)) runs these on Windows, macOS and Ubuntu for every pull request (required to pass before merging), plus the packed-package smoke test, the Next.js e2e and the Next.js version matrix on Ubuntu, and an unsigned Windows package tested end to end. Release builds go further: each installer is installed on its own OS and the installed app is smoke-tested (`apps/desktop/test/installed.e2e.test.ts`; set `TRACETHROUGH_E2E_EXECUTABLE` to run it against any installed copy).
 
 ### Try App Connect with the samples
 
@@ -314,19 +331,19 @@ Full step-by-step flow (pushing, npm packages, desktop installers, troubleshooti
 
 ### Desktop installers
 
-Bump `version` in `apps/desktop/package.json`, commit, then tag and push:
+Bump `version` in `apps/desktop/package.json`, merge it to `main`, then tag that commit and push the tag (replace `X.Y.Z` with the version):
 
 ```bash
-git tag v0.1.0
+git tag vX.Y.Z origin/main
 ```
 
 ```bash
-git push origin v0.1.0
+git push origin vX.Y.Z
 ```
 
-[desktop-release.yml](.github/workflows/desktop-release.yml) builds Windows, macOS (Apple Silicon and Intel) and Linux installers, writes `SHA256SUMS.txt` and publishes a GitHub Release with everything attached. The tag must match the app version. Run the workflow by hand from the **Actions** tab to test the builds without creating a release.
+[desktop-release.yml](.github/workflows/desktop-release.yml) first checks that the tag equals `v` + the app version and that the tagged commit is on `main`, runs the full CI matrix on that exact commit, builds Windows, macOS (Apple Silicon and Intel) and Linux installers, installs each one on its own OS and smoke-tests it, then writes `SHA256SUMS.txt` and publishes a GitHub Release with everything attached. Run the workflow by hand from the **Actions** tab to test the builds without creating a release.
 
-Not done yet: code signing and notarization, and auto-update. Releases are unsigned until certificates are configured.
+Signing and notarization are wired in but optional: they run only when the signing secrets exist (see [docs/RELEASING.md](docs/RELEASING.md)), the result is verified on each finished installer, and the release notes say which installers are signed. Without secrets the installers are explicitly unsigned. Not done yet: auto-update, and no signed release has been produced or verified so far.
 
 ### SDK packages (npm)
 
@@ -342,9 +359,9 @@ One-time setup: create a granular npm token limited to the `@tracethrough` scope
 
 ## Ground rules
 
-- Redaction happens in the capture process **before** anything is buffered, stored, exported or displayed.
+- Masking is optional and raw capture is intentional. Without **Mask secrets**, values are kept exactly as captured (this is the app's default, and the SDK's), so unmasked credentials are expected. With **Mask secrets** on, the masking policy is applied in the capture process **before** anything is buffered, displayed or exported. Masking is defense in depth, not a guarantee; multipart bodies are omitted while it is on.
 - Every event is labelled `browser` or `server`; Inspect URL never claims to see a remote site's server-side calls.
-- Server events are untrusted input: the desktop re-applies redaction and forces `source: server` regardless of what the SDK sent.
+- Server events are untrusted input: the desktop forces `source: server` regardless of what the SDK sent, and re-applies the session's masking policy (when masking is on) even if the SDK already masked or sent raw values.
 - Missing/truncated/binary bodies carry an explicit `unavailableReason`; content is never fabricated.
 
 ## License

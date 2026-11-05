@@ -13,6 +13,7 @@
     "@tracethrough/collector",
     "@tracethrough/fixtures",
     "@tracethrough/example-node-app",
-    "@tracethrough/example-next-app"
+    "@tracethrough/example-next-app",
+    "@tracethrough/example-next-app-15"
   ]
 }
