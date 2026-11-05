@@ -45,6 +45,8 @@ module.exports = {
   linux: {
     target: ['AppImage'],
     category: 'Development',
+    // Defaults to the package name, and the "@" and "/" in "@tracethrough/desktop" are not valid in a file name.
+    executableName: 'tracethrough',
     artifactName: '${productName}-${version}-linux-${arch}.${ext}',
   },
 };
