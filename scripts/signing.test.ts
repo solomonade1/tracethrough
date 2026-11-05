@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
-import { checkExpectation, interpretAuthenticode, verifySigning } from './verify-signing.mjs';
+import { checkExpectation, interpretAuthenticode, interpretCodesignFailure, verifySigning } from './verify-signing.mjs';
 
 const { signingPlan } = createRequire(import.meta.url)('../apps/desktop/signing.cjs') as {
   signingPlan(env: Record<string, string | undefined>): { windows: boolean; mac: boolean; notarize: boolean };
@@ -34,6 +34,14 @@ describe('verify-signing', () => {
     expect(interpretAuthenticode('NotSigned').status).toBe('unsigned');
     expect(interpretAuthenticode('HashMismatch').status).toBe('invalid');
     expect(interpretAuthenticode('').status).toBe('invalid');
+  });
+
+  it('treats a broken ad-hoc macOS signature as unsigned, but other codesign failures as invalid', () => {
+    const verify = 'x.app: code has no resources but signature indicates they must be present';
+    expect(interpretCodesignFailure('x.app: code object is not signed at all').status).toBe('unsigned');
+    expect(interpretCodesignFailure(verify, 'Identifier=a\nCodeDirectory v=20400 flags=0x2(adhoc)\nSignature=adhoc').status).toBe('unsigned');
+    expect(interpretCodesignFailure(verify, 'Authority=Developer ID Application: X').status).toBe('invalid');
+    expect(interpretCodesignFailure(verify).status).toBe('invalid');
   });
 
   it('never calls an AppImage signed', () => {
