@@ -115,6 +115,23 @@ function bodyComment(body: BodyPreview | undefined): string | undefined {
   return undefined;
 }
 
+/** What HAR `httpVersion` holds when the protocol was not observed. HTTP/1.1 is never assumed. */
+export const HAR_UNKNOWN_HTTP_VERSION = 'unknown';
+
+const HAR_HTTP_VERSIONS: Record<string, string> = {
+  'http/0.9': 'HTTP/0.9',
+  'http/1.0': 'HTTP/1.0',
+  'http/1.1': 'HTTP/1.1',
+  h2: 'HTTP/2.0',
+  h3: 'HTTP/3.0',
+};
+
+/** Maps an event's observed protocol to HAR's `httpVersion`; {@link HAR_UNKNOWN_HTTP_VERSION} when absent. */
+export function harHttpVersion(protocol: string | undefined): string {
+  if (!protocol) return HAR_UNKNOWN_HTTP_VERSION;
+  return HAR_HTTP_VERSIONS[protocol.toLowerCase()] ?? protocol;
+}
+
 const orMinus1 = (n: number | undefined) => (n === undefined ? -1 : n);
 
 export function toHar(events: readonly NetworkEvent[], creatorVersion = '0.0.0', masked = true): Har {
@@ -140,7 +157,7 @@ export function toHar(events: readonly NetworkEvent[], creatorVersion = '0.0.0',
       request: {
         method: e.method,
         url: e.urlSanitized,
-        httpVersion: 'HTTP/1.1',
+        httpVersion: harHttpVersion(e.protocol),
         cookies: [],
         headers: pairs(e.requestHeadersSanitized),
         queryString: queryOf(e.urlSanitized),
@@ -154,7 +171,7 @@ export function toHar(events: readonly NetworkEvent[], creatorVersion = '0.0.0',
         // HAR has no "failed" state; status 0 with _error is the convention browsers use.
         status: e.state === 'complete' ? (e.status ?? 0) : 0,
         statusText: e.statusText ?? '',
-        httpVersion: 'HTTP/1.1',
+        httpVersion: harHttpVersion(e.protocol),
         cookies: [],
         headers: pairs(e.responseHeadersSanitized),
         content: {

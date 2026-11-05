@@ -31,20 +31,32 @@ function findNextStorage(): StoreLike | undefined {
   const g = globalThis as Record<symbol, unknown>;
   for (const sym of Object.getOwnPropertySymbols(g)) {
     if (!sym.description?.startsWith(STORAGE_PREFIX)) continue;
-    const candidate = g[sym] as Partial<StoreLike> | undefined;
+    const candidate = g[sym] as Partial<StoreLike> | null | undefined;
     if (typeof candidate?.getStore === 'function') return (storage = candidate as StoreLike);
   }
   return undefined;
 }
 
+/**
+ * The request Next.js is currently handling, or undefined when it is not handling one (prerender and
+ * cache work have no incoming request) or when this Next.js version keeps its request store
+ * somewhere else or in another shape. It reads private internals, so it never throws: on anything
+ * unexpected the SDK falls back to its own request tracking.
+ */
 export function nextRequestContext(): FrameworkRequestContext | undefined {
-  const store = findNextStorage()?.getStore() as NextRequestStore | undefined;
-  // Only real requests: prerender/cache stores have no incoming request to link to.
-  if (store?.type !== 'request' || !store.headers) return undefined;
-  return {
-    traceparent: store.headers.get('traceparent') ?? undefined,
-    path: store.url ? `${store.url.pathname}${store.url.search}` : undefined,
-  };
+  try {
+    const store = findNextStorage()?.getStore() as NextRequestStore | undefined;
+    // Only real requests: prerender/cache stores have no incoming request to link to.
+    if (store?.type !== 'request' || typeof store.headers?.get !== 'function') return undefined;
+    const traceparent = store.headers.get('traceparent');
+    const { pathname, search } = store.url ?? {};
+    return {
+      traceparent: typeof traceparent === 'string' ? traceparent : undefined,
+      path: typeof pathname === 'string' ? `${pathname}${typeof search === 'string' ? search : ''}` : undefined,
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 /**

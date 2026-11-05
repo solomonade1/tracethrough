@@ -56,6 +56,13 @@ export const NetworkEvent = z.object({
   statusText: z.string().optional(),
   durationMs: z.number().optional(),
   type: RequestType.optional(),
+  /**
+   * HTTP protocol the browser reported for this exchange, as a lower-case ALPN-style id:
+   * "http/1.0", "http/1.1", "h2" or "h3". Absent when it was not observed (server events, failed
+   * requests, service-worker responses, events saved before this field existed); consumers must
+   * not assume HTTP/1.1.
+   */
+  protocol: z.string().max(16).optional(),
   /** Raw browser resource type (e.g. "stylesheet", "websocket") for detail views. */
   resourceType: z.string().optional(),
   requestHeadersSanitized: z.record(z.string(), z.string()).optional(),

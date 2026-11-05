@@ -1,6 +1,12 @@
 // Packaging config for electron-builder (`pnpm package:win`). CommonJS so electron-builder can load it directly.
 const fs = require('node:fs');
 const path = require('node:path');
+const { signingPlan } = require('./signing.cjs');
+
+// Signing is conditional: with no credentials in the environment the build is explicitly unsigned
+// (see signing.cjs). Credentials are only ever read by electron-builder from the environment; nothing
+// is written into this file or the installer.
+const signing = signingPlan(process.env);
 
 const electronPkg = require.resolve('electron/package.json');
 // Electron downloads its binary lazily, on the first `require('electron')`, not on install. A fresh checkout
@@ -25,6 +31,9 @@ module.exports = {
   // No native modules to rebuild.
   npmRebuild: false,
   win: {
+    // Without a certificate electron-builder skips signing instead of failing (CSC_IDENTITY_AUTO_DISCOVERY=false
+    // stops it hunting for one in the certificate store).
+    forceCodeSigning: false,
     target: [{ target: 'nsis', arch: ['x64'] }],
     artifactName: '${productName}-Setup-${version}-${arch}.${ext}',
   },
@@ -40,6 +49,11 @@ module.exports = {
   mac: {
     target: ['dmg'],
     category: 'public.app-category.developer-tools',
+    // identity: null = do not sign. With a Developer ID certificate in CSC_LINK the default identity lookup is used.
+    identity: signing.mac ? undefined : null,
+    hardenedRuntime: signing.mac,
+    // Notarization needs a signed app and Apple credentials; otherwise the dmg stays un-notarized.
+    notarize: signing.notarize,
     artifactName: '${productName}-${version}-mac-${arch}.${ext}',
   },
   linux: {

@@ -46,13 +46,23 @@ export class Exporter {
     this.#schedule(this.#opts.flushIntervalMs);
   }
 
-  /** Sends everything queued now (used by tests and shutdown). */
+  /**
+   * Sends everything queued now and resolves once the collector has answered (used by tests,
+   * shutdown and callers that must know their events were delivered). A batch the background timer
+   * already started counts too: its events have left the queue but are not delivered until it ends.
+   */
   async flush(): Promise<void> {
     clearTimeout(this.#timer);
     this.#timer = undefined;
-    while (this.#queue.size && !this.#disabled && Date.now() >= this.#pausedUntil) {
-      await (this.#inFlight ??= this.#sendBatch().finally(() => (this.#inFlight = undefined)));
-      if (this.#failures) break;
+    for (;;) {
+      const sending = this.#inFlight;
+      if (sending) {
+        await sending;
+        if (this.#failures) break;
+        continue;
+      }
+      if (!this.#queue.size || this.#disabled || Date.now() < this.#pausedUntil) break;
+      this.#inFlight = this.#sendBatch().finally(() => (this.#inFlight = undefined));
     }
   }
 

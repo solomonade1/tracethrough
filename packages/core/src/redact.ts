@@ -239,7 +239,9 @@ function createMaskingRedactor(policy: RedactionPolicy): Redactor {
   function sourceText(text: string): Redacted<string> {
     let redacted = false;
     let value = text.replace(
-      /(["']?)([A-Za-z_$][\w$-]*)\1(\s*[:=]\s*)(["'`])((?:\\.|(?!\4)[^\\])*)\4/g,
+      // The key length is capped: unbounded, a long run of word characters made this quadratic
+      // (a 64 KB base64 blob took seconds). Real keys are far shorter than 128 characters.
+      /(["']?)([A-Za-z_$][\w$-]{0,127})\1(\s*[:=]\s*)(["'`])((?:\\.|(?!\4)[^\\])*)\4/g,
       (match, q: string, key: string, sep: string, quote: string) => {
         if (!isSensitiveKey(key)) return match;
         redacted = true;

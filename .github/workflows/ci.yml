@@ -5,6 +5,8 @@ name: CI
 on:
   pull_request:
   workflow_dispatch:
+  # desktop-release.yml runs the whole matrix against the exact tagged commit before building installers.
+  workflow_call:
 
 permissions:
   contents: read
@@ -52,6 +54,11 @@ jobs:
 
       - run: pnpm test
 
+      # Packs core, node and next as publishing would and installs the tarballs into a clean project.
+      - name: Packed package smoke test
+        if: runner.os == 'Linux'
+        run: pnpm smoke:packages
+
       - name: End-to-end (desktop app)
         if: runner.os != 'Linux'
         run: pnpm test:e2e
@@ -92,3 +99,19 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: pnpm exec playwright install chromium --with-deps
       - run: xvfb-run --auto-servernum pnpm test:e2e:next
+
+  # Real `next dev` / `next start` for each supported Next.js major. Slow, so it is a job of its own;
+  # it is not (yet) a required check, see docs/RELEASING.md.
+  next-matrix:
+    name: Next.js matrix (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:next-matrix

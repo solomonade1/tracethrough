@@ -3,6 +3,13 @@ name: Desktop release
 # Tag a version (git tag v0.1.0 && git push origin v0.1.0) to build the installers for every
 # platform and attach them to a GitHub Release. Can also be run by hand to test the builds;
 # a manual run uploads the installers as workflow artifacts and does not create a release.
+#
+# Order of events, each step gating the next:
+#   guard     the tag matches apps/desktop's version and the tagged commit is on main
+#   validate  the full CI matrix (ci.yml) on that exact commit
+#   build     installers per platform, signed only when credentials are configured, then verified
+#   smoke     each installer is INSTALLED on its own OS and the installed app is exercised
+#   release   checksums and a GitHub Release whose notes state what was and was not signed
 on:
   push:
     tags: ['v*']
@@ -12,32 +19,152 @@ permissions:
   contents: read
 
 jobs:
+  guard:
+    name: Check tag and commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the tagged commit must be compared with main's history
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      # Runs before `pnpm install` and is plain Node on purpose. Skipped for manual builds, which publish nothing.
+      - name: Tag matches the app version and is on main
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          node scripts/check-desktop-release.mjs "${GITHUB_REF_NAME}" --main-ref origin/main
+
+  validate:
+    name: Validate
+    needs: guard
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   build:
     name: Build (${{ matrix.name }})
+    needs: [guard, validate]
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: Windows x64
+            id: win-x64
             os: windows-latest
+            platform: win
             script: dist:win
-            files: |
-              apps/desktop/release/*.exe
+            installer: apps/desktop/release/*.exe
           - name: macOS arm64
+            id: mac-arm64
             os: macos-latest
+            platform: mac
             script: dist:mac
-            files: |
-              apps/desktop/release/*.dmg
+            installer: apps/desktop/release/*.dmg
           - name: macOS x64
+            id: mac-x64
             os: macos-15-intel
+            platform: mac
             script: dist:mac
-            files: |
-              apps/desktop/release/*.dmg
+            installer: apps/desktop/release/*.dmg
           - name: Linux x64
+            id: linux-x64
             os: ubuntu-latest
+            platform: linux
             script: dist:linux
-            files: |
-              apps/desktop/release/*.AppImage
+            installer: apps/desktop/release/*.AppImage
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6.1.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # guard already enforced this for tags; kept so a build can never be packaged under the wrong version.
+      - name: Check tag matches the app version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          app_version=$(node -p "require('./apps/desktop/package.json').version")
+          if [ "v$app_version" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match apps/desktop version v$app_version" >&2
+            exit 1
+          fi
+
+      # Signing is optional. Each platform only ever sees its own credentials, and with none configured the
+      # installer is built UNSIGNED (apps/desktop/signing.cjs). Whether an installer is really signed is decided
+      # by the "Verify signing" step below from the artifact itself, never from the presence of secrets.
+      - name: Package
+        shell: bash
+        env:
+          CSC_LINK: ${{ matrix.platform == 'mac' && secrets.MAC_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
+          WIN_CSC_LINK: ${{ matrix.platform == 'win' && secrets.WIN_CSC_LINK || '' }}
+          WIN_CSC_KEY_PASSWORD: ${{ matrix.platform == 'win' && secrets.WIN_CSC_KEY_PASSWORD || '' }}
+          APPLE_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.platform == 'mac' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_TEAM_ID || '' }}
+        run: |
+          # Blank is the same as absent for electron-builder only if it is really unset.
+          for v in CSC_LINK CSC_KEY_PASSWORD WIN_CSC_LINK WIN_CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            [ -n "${!v}" ] || unset "$v"
+          done
+          if [ -z "${CSC_LINK}${WIN_CSC_LINK}" ]; then export CSC_IDENTITY_AUTO_DISCOVERY=false; fi
+          pnpm --filter @tracethrough/desktop ${{ matrix.script }}
+
+      # Reads the signature off the finished installer. When signing credentials were configured the build
+      # fails unless the result verifies (and, on macOS with Apple credentials, is notarized); without them it
+      # records that the installer is unsigned.
+      - name: Verify signing
+        shell: bash
+        env:
+          SIGNING_CONFIGURED: ${{ matrix.platform == 'mac' && secrets.MAC_CSC_LINK != '' || matrix.platform == 'win' && secrets.WIN_CSC_LINK != '' }}
+          NOTARIZATION_CONFIGURED: ${{ matrix.platform == 'mac' && secrets.MAC_CSC_LINK != '' && secrets.APPLE_ID != '' }}
+        run: |
+          installer=$(ls ${{ matrix.installer }} | head -1)
+          args=()
+          if [ "$SIGNING_CONFIGURED" = "true" ]; then args+=(--expect signed); else args+=(--expect unsigned); fi
+          if [ "$NOTARIZATION_CONFIGURED" = "true" ]; then args+=(--expect-notarized); fi
+          mkdir -p signing
+          node scripts/verify-signing.mjs ${{ matrix.platform }} "$installer" "${args[@]}" | tee "signing/${{ matrix.id }}.json"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: installer-${{ matrix.os }}
+          path: ${{ matrix.installer }}
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: signing-${{ matrix.id }}
+          path: signing/${{ matrix.id }}.json
+          if-no-files-found: error
+
+  # Installs each installer on its own OS and runs the end-to-end smoke test against the INSTALLED app,
+  # not the unpacked build output: window, environment detection, a fixture capture, and the clear
+  # "needs Chrome or Edge" state (apps/desktop/test/installed.e2e.test.ts).
+  smoke:
+    name: Install and smoke test (${{ matrix.name }})
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows x64, os: windows-latest }
+          - { name: macOS arm64, os: macos-latest }
+          - { name: macOS x64, os: macos-15-intel }
+          - { name: Linux x64, os: ubuntu-latest }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -52,31 +179,64 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Check tag matches the app version
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: bash
-        run: |
-          app_version=$(node -p "require('./apps/desktop/package.json').version")
-          if [ "v$app_version" != "${GITHUB_REF_NAME}" ]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match apps/desktop version v$app_version" >&2
-            exit 1
-          fi
+      - name: Allow Chromium sandbox (Linux)
+        if: runner.os == 'Linux'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      # Unsigned until signing certificates are configured (see README, "Unsigned builds").
-      - name: Package
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: pnpm --filter @tracethrough/desktop ${{ matrix.script }}
+      - run: pnpm exec playwright install chromium ${{ runner.os == 'Linux' && '--with-deps' || '' }}
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: installer-${{ matrix.os }}
-          path: ${{ matrix.files }}
-          if-no-files-found: error
+          path: installers
+
+      - name: Install (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = (Get-ChildItem installers\*.exe | Select-Object -First 1).FullName
+          $dir = Join-Path $env:RUNNER_TEMP 'TraceThrough'
+          # NSIS: /S is silent, and /D (install directory) must be last and unquoted.
+          $p = Start-Process -FilePath $installer -ArgumentList '/S', "/D=$dir" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "installer exited with $($p.ExitCode)" }
+          $exe = Join-Path $dir 'TraceThrough.exe'
+          if (-not (Test-Path $exe)) { throw "installer did not create $exe" }
+          "TRACETHROUGH_E2E_EXECUTABLE=$exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Install (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          dmg=$(ls installers/*.dmg | head -1)
+          mnt=$(mktemp -d)
+          hdiutil attach -nobrowse -readonly -mountpoint "$mnt" "$dmg"
+          cp -R "$mnt/TraceThrough.app" "$RUNNER_TEMP/TraceThrough.app"
+          hdiutil detach "$mnt"
+          exe="$RUNNER_TEMP/TraceThrough.app/Contents/MacOS/TraceThrough"
+          test -x "$exe"
+          echo "TRACETHROUGH_E2E_EXECUTABLE=$exe" >> "$GITHUB_ENV"
+
+      # AppImages need FUSE, which hosted runners lack, so unpack it; the unpacked tree is the same app.
+      - name: Install (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          appimage=$(realpath "$(ls installers/*.AppImage | head -1)")
+          chmod +x "$appimage"
+          (cd "$RUNNER_TEMP" && "$appimage" --appimage-extract > /dev/null)
+          exe="$RUNNER_TEMP/squashfs-root/tracethrough"
+          test -x "$exe"
+          echo "TRACETHROUGH_E2E_EXECUTABLE=$exe" >> "$GITHUB_ENV"
+
+      - name: Smoke test the installed app
+        if: runner.os != 'Linux'
+        run: pnpm exec vitest run --config apps/desktop/vitest.config.ts installed
+
+      - name: Smoke test the installed app (virtual display)
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum pnpm exec vitest run --config apps/desktop/vitest.config.ts installed
 
   release:
     name: Publish GitHub Release
-    needs: build
+    needs: [build, smoke]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -84,12 +244,40 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
+          pattern: installer-*
           path: dist
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: signing-*
+          path: signing
           merge-multiple: true
 
       - name: Checksums
         working-directory: dist
         run: sha256sum * > SHA256SUMS.txt
+
+      # The notes say what verification found for each installer, nothing more.
+      - name: Describe signing
+        run: |
+          {
+            echo '## Installer signing'
+            echo
+            echo '| Installer | Signature | Notarized |'
+            echo '| --- | --- | --- |'
+            for f in signing/*.json; do
+              jq -r '"| \(.platform) (\(.file | gsub("\\\\"; "/") | split("/") | last)) | \(.status) | \(if .platform == "mac" then (if .notarized then "yes" else "no" end) else "n/a" end) |"' "$f"
+            done
+            echo
+            if jq -e 'select(.platform != "linux" and .status != "signed")' signing/*.json > /dev/null; then
+              echo '**Some installers are not code-signed.** Windows SmartScreen and macOS Gatekeeper will warn before running them; verify the download against `SHA256SUMS.txt`. See the README, "Unsigned builds".'
+            else
+              echo 'Every Windows and macOS installer was verified as signed after packaging.'
+            fi
+            echo
+          } > release-notes.md
+          cat release-notes.md
 
       - name: Create release
         env:
@@ -98,4 +286,5 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" dist/* \
             --repo "${GITHUB_REPOSITORY}" \
             --title "TraceThrough ${GITHUB_REF_NAME}" \
+            --notes-file release-notes.md \
             --generate-notes

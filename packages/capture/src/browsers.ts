@@ -45,6 +45,8 @@ function bundledChromiumInstalled(): boolean {
  * so the app can call it at startup to warn before the user tries to start a session.
  */
 export function findBrowsers(): BrowserChannel[] {
+  // Test hook: lets the installer smoke test check the "no Chrome or Edge" experience on a machine that has them.
+  if (process.env.TRACETHROUGH_TEST_NO_BROWSERS === '1') return [];
   const found: BrowserChannel[] = [];
   if (bundledChromiumInstalled()) found.push('chromium');
   for (const channel of ['chrome', 'msedge'] as const) {

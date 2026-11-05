@@ -41,6 +41,20 @@ function truncateUtf8(text: string, maxBytes: number): { text: string; truncated
   return { text: buf.subarray(0, maxBytes).toString('utf8'), truncated: true };
 }
 
+/** True for `multipart/*` (boundary and other parameters are ignored). */
+export function isMultipartMime(contentType: string | undefined): boolean {
+  return normalizeMime(contentType)?.startsWith('multipart/') ?? false;
+}
+
+/**
+ * The one multipart policy shared by browser capture, SDK capture and server-event ingestion.
+ * Multipart fields cannot be masked reliably (the redactor sees opaque text), so with masking on
+ * their content is never kept. With masking off the body is kept exactly as captured.
+ */
+export function omitsMultipart(redactor: Redactor, ...contentTypes: (string | undefined)[]): boolean {
+  return redactor.masking && contentTypes.some(isMultipartMime);
+}
+
 export function unavailableBody(
   reason: BodyUnavailableReason,
   mime?: string,
@@ -62,9 +76,8 @@ export function buildBodyPreview(
   if (!bytes || bytes.length === 0) return { body: unavailableBody('empty', mime, 0), redacted: false };
 
   const sizeBytes = bytes.length;
-  const multipart = mime?.startsWith('multipart/') ?? false;
-  // Multipart form fields cannot be masked reliably, so they are only shown with masking off.
-  if (multipart && redactor.masking) {
+  const multipart = isMultipartMime(mime);
+  if (omitsMultipart(redactor, mime)) {
     return { body: unavailableBody('omitted-by-policy', mime, sizeBytes), redacted: false };
   }
   const textual = isTextualMime(mime) || ((!mime || multipart) && !looksBinary(bytes));
@@ -87,4 +100,22 @@ export function buildBodyPreview(
     },
     redacted: r.redacted,
   };
+}
+
+/**
+ * Applies the multipart policy to a preview that arrived from elsewhere (an SDK event). When the
+ * policy applies the preview is dropped and replaced by an `omitted-by-policy` marker that keeps
+ * the MIME type and the known original size. `headerContentType` is the matching Content-Type
+ * header, consulted too because the sender's `mime` is untrusted and may be missing or wrong.
+ * Returns the input untouched when the policy does not apply.
+ */
+export function applyBodyPolicy(
+  body: BodyPreview | undefined,
+  redactor: Redactor,
+  headerContentType?: string,
+): BodyPreview | undefined {
+  if (!body || body.unavailableReason === 'empty') return body;
+  if (!omitsMultipart(redactor, body.mime, headerContentType)) return body;
+  const mime = isMultipartMime(body.mime) ? normalizeMime(body.mime) : normalizeMime(headerContentType);
+  return unavailableBody('omitted-by-policy', mime, body.sizeBytes);
 }

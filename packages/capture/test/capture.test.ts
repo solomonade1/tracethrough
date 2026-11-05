@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { MASK, NetworkEvent } from '@tracethrough/core';
+import { MASK, NetworkEvent, toHar } from '@tracethrough/core';
 import { CANARY, startFixtureServer, type FixtureServer } from '@tracethrough/fixtures';
 import { CaptureSession, InvalidTargetUrlError, findBrowsers, validateTargetUrl, type BrowserChannel } from '../src/index.ts';
 
@@ -106,6 +106,13 @@ describe('CaptureSession against fixture site', () => {
     expect(Buffer.byteLength(large!.responseBody!.preview!)).toBeLessThanOrEqual(PREVIEW_BYTES);
 
     expect(byPath('/api/binary')[0]!.responseBody).toMatchObject({ unavailableReason: 'binary', mime: 'image/png' });
+  });
+
+  it('records the protocol the browser reported, and exports it to HAR', () => {
+    const [doc] = byPath('/basic');
+    expect(doc!.protocol).toBe('http/1.1');
+    const entry = toHar(events).log.entries.find((e) => e.request.url === doc!.urlSanitized)!;
+    expect([entry.request.httpVersion, entry.response.httpVersion]).toEqual(['HTTP/1.1', 'HTTP/1.1']);
   });
 
   it('records timing', () => {

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { EXPORT_WARNING, filterEvents, statusClassOf, toHar, toSessionExport, type NetworkEvent } from '../src/index.ts';
+import {
+  EXPORT_WARNING,
+  HAR_UNKNOWN_HTTP_VERSION,
+  NetworkEvent,
+  filterEvents,
+  statusClassOf,
+  toHar,
+  toSessionExport,
+} from '../src/index.ts';
 
 let n = 0;
 const ev = (over: Partial<NetworkEvent> = {}): NetworkEvent => ({
@@ -113,5 +121,43 @@ describe('exports with masking off', () => {
     expect(toHar([], '1.0.0', false).log.comment).toContain('Masking was off');
     expect(toSessionExport('s', [], 0).masked).toBe(true);
     expect(toSessionExport('s', [], 0, false).masked).toBe(false);
+  });
+});
+
+describe('toHar protocol', () => {
+  const versions = (e: NetworkEvent) => {
+    const [entry] = toHar([e]).log.entries;
+    return [entry!.request.httpVersion, entry!.response.httpVersion];
+  };
+
+  it.each([
+    ['http/1.1', 'HTTP/1.1'],
+    ['http/1.0', 'HTTP/1.0'],
+    ['h2', 'HTTP/2.0'],
+    ['h3', 'HTTP/3.0'],
+    ['H2', 'HTTP/2.0'],
+  ])('exports the observed protocol %s as %s on the request and the response', (protocol, expected) => {
+    expect(versions(ev({ protocol }))).toEqual([expected, expected]);
+  });
+
+  it('passes an unfamiliar protocol through untouched', () => {
+    expect(versions(ev({ protocol: 'spdy/3.1' }))).toEqual(['spdy/3.1', 'spdy/3.1']);
+  });
+
+  it('never claims HTTP/1.1 when the protocol was not observed', () => {
+    expect(versions(ev())).toEqual([HAR_UNKNOWN_HTTP_VERSION, HAR_UNKNOWN_HTTP_VERSION]);
+    expect(HAR_UNKNOWN_HTTP_VERSION).toBe('unknown');
+  });
+
+  it('exports events saved before the field existed', () => {
+    const { protocol: _omitted, ...legacy } = ev({ protocol: 'h2' });
+    const parsed = NetworkEvent.parse(legacy);
+    expect(parsed.protocol).toBeUndefined();
+    expect(() => toHar([parsed])).not.toThrow();
+    expect(versions(parsed)).toEqual(['unknown', 'unknown']);
+  });
+
+  it('keeps the protocol in the JSON session export', () => {
+    expect(toSessionExport('s', [ev({ protocol: 'h2' })]).events[0]!.protocol).toBe('h2');
   });
 });

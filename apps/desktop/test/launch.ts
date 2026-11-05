@@ -8,9 +8,10 @@ export const E2E_COLLECTOR_TOKEN = 'e2e-token-0123456789abcdefghijkl';
  * a random port so tests never touch the developer's real token file or default port.
  * Set TRACETHROUGH_E2E_EXECUTABLE to a packaged TraceThrough.exe to test the shipped artifact instead.
  */
-export async function launchApp() {
+export async function launchApp(extraEnv: Record<string, string> = {}) {
   const env = {
     ...process.env,
+    ...extraEnv,
     TRACETHROUGH_HEADLESS_CAPTURE: '1',
     TRACETHROUGH_COLLECTOR_PORT: '0',
     TRACETHROUGH_COLLECTOR_TOKEN: E2E_COLLECTOR_TOKEN,
