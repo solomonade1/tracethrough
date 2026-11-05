@@ -116,7 +116,7 @@ PRs opened with the default `GITHUB_TOKEN` don't trigger CI. Either:
 
 All three packages are on npm at `0.1.0`, so the first publish is done. Remaining items:
 
-- [ ] On npmjs.com, enable **trusted publishing** for each package (repository `solomonade1/trace-lens`, workflow `release.yml`).
+- [ ] On npmjs.com, enable **trusted publishing** for each package (repository `solomonade1/tracethrough`, workflow `release.yml`).
 - [ ] Then delete the `NPM_TOKEN` repository secret and the `NODE_AUTH_TOKEN` line in `release.yml`.
 - [ ] Settings → Actions → General: "Allow GitHub Actions to create and approve pull requests" must stay on.
 - [ ] Optional: add `RELEASE_TOKEN` (see above).
