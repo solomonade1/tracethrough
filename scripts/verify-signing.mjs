@@ -29,6 +29,18 @@ export function interpretAuthenticode(status) {
   return { status: 'invalid', detail: `Authenticode status: ${s || 'unknown'}` };
 }
 
+/**
+ * Classifies a failed `codesign --verify`. No signature, or only an ad-hoc one (no certificate identity, which is
+ * what an unsigned Electron build has on macOS), counts as unsigned; anything else is a genuinely broken signature.
+ */
+export function interpretCodesignFailure(verifyOutput, displayOutput = '') {
+  const detail = String(verifyOutput).split('\n')[0] || 'codesign failed';
+  if (/not signed at all/i.test(verifyOutput)) return { status: 'unsigned', detail };
+  const adhoc = /Signature=adhoc/i.test(displayOutput) || /flags=0x[0-9a-f]+\([^)]*adhoc/i.test(displayOutput);
+  if (adhoc) return { status: 'unsigned', detail: `ad-hoc signature only, no Developer ID (${detail})` };
+  return { status: 'invalid', detail };
+}
+
 function run(file, args) {
   try {
     return { ok: true, out: execFileSync(file, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) };
@@ -53,8 +65,10 @@ function verifyMac(file) {
     const appPath = join(mount, app);
     const sig = run('codesign', ['--verify', '--deep', '--strict', appPath]);
     if (!sig.ok) {
-      const unsigned = /not signed at all/i.test(sig.out);
-      return { status: unsigned ? 'unsigned' : 'invalid', notarized: false, detail: sig.out.split('\n')[0] || 'codesign failed' };
+      // Electron's arm64 binaries carry an ad-hoc signature that repackaging invalidates; `codesign --verify` then
+      // fails even though there is no real (Developer ID) signature to speak of.
+      const info = run('codesign', ['-dvv', appPath]);
+      return { ...interpretCodesignFailure(sig.out, info.out), notarized: false };
     }
     const gatekeeper = run('spctl', ['--assess', '--type', 'execute', appPath]);
     const stapled = run('xcrun', ['stapler', 'validate', appPath]);
