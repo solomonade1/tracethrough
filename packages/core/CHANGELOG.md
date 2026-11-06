@@ -1,5 +1,11 @@
 # @tracethrough/core
 
+## 0.4.0
+
+### Minor Changes
+
+- 12e5d87: Add helpers for copying and saving a single exchange: `toCurl`, `toFetch`, `toHarEntry`, `parseCookies`, `jsonPathToString`, `headerLines` and `exchangeAsText`. `toHar` now builds each entry with `toHarEntry`, so single-entry and full exports cannot drift; its output is unchanged.
+
 ## 0.3.0
 
 ### Minor Changes
