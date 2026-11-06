@@ -48,9 +48,45 @@
   --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color-scheme: light;
 }
+:root[data-theme='light'] {
+  color-scheme: light;
+}
 
+/* Dark palette: the v2 mockup (docs/design/workspace-v2-mockup.html). Applied when the user picks Dark,
+   or picks System on a dark OS. Keep the two blocks identical. */
+:root[data-theme='dark'] {
+  --bg: #0c111d;
+  --bg-2: #101624;
+  --bg-3: #172033;
+  --bg-input: #0a0e16;
+  --fg: #e7ebf3;
+  --fg-muted: #8a96ac;
+  --border: #1f2a3f;
+  --border-soft: #182134;
+  --border-strong: #34446a;
+  --accent: #5b9bff;
+  --accent-fg: #06101f;
+  --selected: rgb(91 155 255 / 0.12);
+  --src-browser: #7aa7ff;
+  --src-server: #b79cff;
+  --ok: #4ade80;
+  --redirect: #5b9bff;
+  --client: #f5b84b;
+  --status-5xx: #ff6b6b;
+  --failed: #ff6b6b;
+  --mask-bg: #4a3b10;
+  --mask-fg: #fde68a;
+  --rec: #ff6b6b;
+  --hit: rgb(245 184 75 / 0.2);
+  --json-key: #86bbff;
+  --json-string: #7ee3b8;
+  --json-number: #ffb86b;
+  --json-bool: #ff8ad4;
+  --json-null: #8a96ac;
+  color-scheme: dark;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #0c111d;
     --bg-2: #101624;
     --bg-3: #172033;
@@ -366,6 +402,11 @@ code {
 .st.lg {
   font-size: 14px;
   padding: 1px 8px;
+  flex: none;
+  max-width: 13em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tone-ok .st,
 .st.tone-ok {
@@ -602,7 +643,7 @@ select.dd.on {
 }
 .row {
   display: grid;
-  grid-template-columns: 24px 54px 54px minmax(0, 1fr) 112px 62px 66px 134px;
+  grid-template-columns: 24px 54px 54px minmax(0, 1fr) 112px 72px 66px 134px;
   align-items: center;
   gap: 6px;
   padding: 0 10px;
@@ -748,7 +789,7 @@ select.dd.on {
 }
 .dh .dpath {
   flex: 1;
-  min-width: 0;
+  min-width: 6em;
   font-family: var(--mono);
   font-size: 14px;
   font-weight: 500;
@@ -1175,7 +1216,8 @@ tr:focus-within > td > .cp,
   z-index: 20;
   right: 0;
   top: calc(100% + 4px);
-  min-width: 230px;
+  min-width: 240px;
+  white-space: nowrap;
   background: var(--bg-2);
   border: 1px solid var(--border-strong);
   border-radius: 9px;
@@ -1320,7 +1362,7 @@ mark.masked {
 
 @media (max-width: 1200px) {
   .row {
-    grid-template-columns: 24px 54px 54px minmax(0, 1fr) 62px 66px 134px;
+    grid-template-columns: 24px 54px 54px minmax(0, 1fr) 72px 66px 134px;
   }
   .c-domain {
     display: none;
@@ -1398,7 +1440,47 @@ mark.masked {
 .card .check {
   align-items: flex-start;
   gap: 8px;
+  white-space: normal;
 }
 .card .check input {
   margin-top: 3px;
+}
+
+/* ---------- Icons and theme ---------- */
+.ico {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--fg-muted);
+}
+.target {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.target .url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.filterbar .search {
+  gap: 6px;
+}
+.brand svg,
+.home-brand svg {
+  border-radius: 22%;
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+.theme-btn {
+  padding: 5px 8px;
+}
+.theme-btn .ico {
+  color: var(--fg);
+}
+.home-brand .menu-wrap {
+  margin-left: auto;
 }

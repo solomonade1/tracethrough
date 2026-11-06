@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useMemo, useState } from 'react';
 import type { EventFilter, EventSource, NetworkEvent, RequestType, StatusClass } from '@tracethrough/core';
 import { useInspector } from '../store';
+import { Icon } from './Icons';
 
 const STATUS: [StatusClass, string][] = [
   ['2xx', '2xx'],
@@ -64,6 +65,7 @@ export function FilterBar({ events, shown, dropped }: { events: NetworkEvent[]; 
   return (
     <div className="filterbar">
       <div className="search">
+        <Icon name="search" />
         <input type="search" aria-label="Search requests" placeholder="Filter by URL, method or status" value={text} onChange={(e) => onSearch(e.target.value)} />
         <label className="check">
           <input type="checkbox" checked={!!filter.searchBodies} onChange={(e) => setFilter({ searchBodies: e.target.checked })} />

@@ -3,6 +3,7 @@ import type { AppEnvironment } from '../../../shared/api';
 import { useInspector } from '../store';
 import { BrandMark } from './BrandMark';
 import { ConnectPanel } from './ConnectPanel';
+import { ThemeMenu } from './ThemeMenu';
 
 export function Home() {
   const status = useInspector((s) => s.status);
@@ -32,6 +33,7 @@ export function Home() {
         <BrandMark size={28} />
         <h1>TraceThrough</h1>
         {env && <span className="muted small">v{env.version}</span>}
+        <ThemeMenu />
       </div>
 
       <section className="card" aria-labelledby="inspect-title">

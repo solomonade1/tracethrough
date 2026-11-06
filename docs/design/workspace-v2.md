@@ -101,7 +101,9 @@ Every component below must keep to these. If a design detail conflicts with one,
 
 ## 4. Design tokens
 
-Replace the `:root` block in `apps/desktop/src/renderer/src/styles.css` with the tokens below. Both themes are required. The app follows `prefers-color-scheme` today, so keep that. The mockup only shows dark.
+Replace the `:root` block in `apps/desktop/src/renderer/src/styles.css` with the tokens below. Both themes are required. The **dark palette is the mockup's** (`workspace-v2-mockup.html`), token for token; the light palette is derived from it.
+
+**Theme choice.** A theme menu (System, Light, Dark) sits at the right end of the top bar and of the Home brand row; its button shows a monitor, sun or moon icon and is named "Theme: <choice>". System follows `prefers-color-scheme`; Light and Dark set `data-theme` on `<html>`, and the choice is saved in `localStorage` as `tt.theme`. The dark tokens are declared twice, under `:root[data-theme='dark']` and under `@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) }`; keep the two blocks identical. The stored choice is applied before the first render so there is no flash. Native Electron dialogs (save, confirm) still follow the OS.
 
 Token names extend the existing ones (`--bg`, `--fg`, `--border` and so on) so existing rules keep working. **One rename:** `--server` currently means "5xx status colour", which clashes with the Server source badge. Rename it to `--status-5xx` everywhere, and use `--src-server` for the source.
 
@@ -209,6 +211,7 @@ Component names are suggestions. Where an existing class name is used by e2e tes
 | Stop | Only while recording. Danger style. Label `■ Stop`, which the test relies on. |
 | Clear | Disabled when there are no events. Calls `clearSession()`, then resets the store, the selection and ticked rows. |
 | Export ▾ | Disabled when there are no events. Opens the Export menu ([§5.13](#513-menus)). |
+| Theme menu | Last item in the bar. See [§4](#4-design-tokens). |
 | + New session | Primary button. If there are events, it asks first using the existing `confirm()` text: "Start a new session? Exchanges that have not been exported will be discarded." Its accessible name must contain "New session". |
 
 ### 5.2 Session strip (new `SessionStrip.tsx`, replaces `.banner`)
@@ -797,6 +800,11 @@ Built on 6 Nov 2026. Where the build differs from the text above, this section i
 | Search | Transition, not a 120 ms debounce | No artificial delay; keeps the box responsive and removes a timing race in e2e tests. |
 | Group headers | Not sticky | Rows are virtualized with transforms; sticky positioning would need a second layer. They still read as headers. |
 | Session strip | "Browser only" slot dropped when App Connect is off | It repeated the "Browser traffic only" scope text. |
+| Theme | System / Light / Dark menu in the top bar and on Home | Added in review (6 Nov 2026): the app previously only followed the OS. The dark palette is the mockup's. |
+| Icons | Link icon in the URL pill, magnifier in the search box | Present in the mockup; missing from the first build. |
+| Detail status pill | Capped at 13em with ellipsis | Long status texts ("500 Internal Server Error") were pushing the path out. |
+| Size column | 72 px | "600.0 KB*" was truncated at 62 px. |
+| Export dialog | Shows `exportWarning()` text only | The unmasked warning already starts with "Masking was off…"; the extra lead-in repeated it. |
 | Source column | 134 px | Fits the longest linked label. |
 | Link cards | Status, then source badge, then method and URL, then duration | DOM order is status, "GET url", badge, duration so the accessible name starts with "200 GET"; CSS `order` shows the badge second. |
 | Find in text views | Highlights every hit and cycles with Enter / Shift+Enter | As specified; the count is computed from the text, not the DOM. |

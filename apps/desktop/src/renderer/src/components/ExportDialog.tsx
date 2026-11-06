@@ -3,6 +3,8 @@ import { EXPORT_WARNING, EXPORT_WARNING_UNMASKED } from '@tracethrough/core';
 import type { ExportFormat } from '../../../shared/api';
 import { useInspector, type ExportScopeChoice } from '../store';
 
+const plural = (n: number) => `${n} ${n === 1 ? 'request' : 'requests'}`;
+
 const FORMATS: { id: ExportFormat; title: string; text: string }[] = [
   { id: 'har', title: 'HAR 1.2', text: 'Opens in Chrome DevTools, Charles and Fiddler. Server calls carry _source: server.' },
   { id: 'json', title: 'TraceThrough JSON', text: 'Everything captured, including trace IDs and links between browser and server.' },
@@ -35,9 +37,9 @@ export function ExportDialog({ visibleIds }: { visibleIds: string[] }) {
   if (!dialog) return null;
 
   const scopes: { id: ExportScopeChoice; title: string; text: string }[] = [
-    { id: 'all', title: 'Whole session', text: `${total} requests` },
-    { id: 'view', title: 'Only what is shown', text: `${visibleIds.length} requests match the filters` },
-    ...(picked.size ? [{ id: 'sel' as const, title: 'Selected rows', text: `${picked.size} requests` }] : []),
+    { id: 'all', title: 'Whole session', text: plural(total) },
+    { id: 'view', title: 'Only what is shown', text: `${plural(visibleIds.length)} ${visibleIds.length === 1 ? 'matches' : 'match'} the filters` },
+    ...(picked.size ? [{ id: 'sel' as const, title: 'Selected rows', text: plural(picked.size) }] : []),
   ];
 
   async function save() {
@@ -104,11 +106,7 @@ export function ExportDialog({ visibleIds }: { visibleIds: string[] }) {
           ))}
         </div>
         <div className={`note ${masked ? '' : 'warn'}`}>
-          {masked ? EXPORT_WARNING : (
-            <>
-              <b>Masking is off for this session.</b> {EXPORT_WARNING_UNMASKED}
-            </>
-          )}
+          {masked ? EXPORT_WARNING : EXPORT_WARNING_UNMASKED}
         </div>
         <div className="row-end">
           <button type="button" className="btn" onClick={close}>

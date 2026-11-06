@@ -10,6 +10,8 @@ import { RequestTable } from './RequestTable';
 import { SelectionBar } from './SelectionBar';
 import { SessionStrip } from './SessionStrip';
 import { StatusBar } from './StatusBar';
+import { ThemeMenu } from './ThemeMenu';
+import { Icon } from './Icons';
 import { Toast } from './Toast';
 
 const DEFAULT_WIDTH = 540;
@@ -93,7 +95,8 @@ export function Workspace() {
           TraceThrough
         </span>
         <span className="target" title={status.url}>
-          {status.url}
+          <Icon name="link" />
+          <span className="url">{status.url}</span>
         </span>
         <div className={`rec ${recording ? 'on' : ''}`} role="status" aria-live="polite">
           <span className="dot" aria-hidden />
@@ -125,6 +128,7 @@ export function Workspace() {
         <button className="btn primary" onClick={() => void newSession()}>
           + New session
         </button>
+        <ThemeMenu />
       </header>
 
       <SessionStrip />

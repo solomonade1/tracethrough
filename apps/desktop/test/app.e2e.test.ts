@@ -43,6 +43,22 @@ describe('TraceThrough desktop', () => {
     await snap('01-home-error');
   });
 
+  it('switches between light, dark and system themes', async () => {
+    const pick = async (label: string) => {
+      await win.getByRole('button', { name: /^Theme:/ }).click();
+      await win.getByRole('menuitem', { name: label }).click();
+    };
+    const bg = () => win.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    await pick('Dark');
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect.poll(bg).toBe('rgb(12, 17, 29)'); // the v2 mockup's dark surface
+    await pick('Light');
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect.poll(bg).toBe('rgb(255, 255, 255)');
+    await pick('System');
+    await expect(win.locator('html')).not.toHaveAttribute('data-theme', /.+/);
+  });
+
   it('starts a session and streams requests live (UI-01)', async () => {
     await win.locator('#target-url').fill(`${server.url}/basic`);
     // The masking checks below need "Mask secrets"; the unmasked default is covered at the end.
