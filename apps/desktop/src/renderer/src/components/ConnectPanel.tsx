@@ -24,7 +24,9 @@ function CopyBlock({ label, text }: { label: string; text: string }) {
   );
 }
 
-const NEXT_SNIPPET = `// instrumentation.ts (project root or src/)
+const INSTALL_SNIPPET = 'npm install @tracethrough/next   # Next.js\nnpm install @tracethrough/node   # any other Node.js server';
+
+const NEXT_SNIPPET =`// instrumentation.ts (project root or src/)
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     const { register } = await import('@tracethrough/next');
@@ -64,7 +66,7 @@ export function ConnectPanel() {
     <div className="connect">
       <p className="muted" role="status">
         Collector listening on <code>{info.collectorUrl}</code> (this machine only) · {info.received} server events received
-        {info.ignored > 0 && <span> · {info.ignored} ignored (no session recording)</span>}
+        {info.ignored > 0 && <span> · {info.ignored} ignored (start a session to record them)</span>}
       </p>
       <ol>
         <li>
@@ -85,13 +87,13 @@ export function ConnectPanel() {
           </div>
         </li>
         <li>
-          Register the SDK (Node runtime only; metadata only, no bodies):
+          Install the SDK, then register it before your server makes requests. It records Node <code>fetch</code> calls (Node runtime), with bodies previewed up to 64 KB:
+          <CopyBlock label="Install" text={INSTALL_SNIPPET} />
           <CopyBlock label="Next.js" text={NEXT_SNIPPET} />
           <CopyBlock label="Node" text={NODE_SNIPPET} />
         </li>
         <li>
-          Start a session above with <strong>This is my app</strong> ticked. Requests to that origin get a trace header so
-          server calls can be linked.
+          Restart your app, then start a session above with <strong>This is my app</strong> ticked. Server calls appear as Server rows linked to the browser request.
         </li>
       </ol>
       <p className="muted small">

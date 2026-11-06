@@ -1,6 +1,6 @@
 # TraceThrough
 
-A developer network inspector. Enter a URL, browse it in an isolated Chrome or Edge window, and inspect the traffic: full headers, cookies, tokens and bodies, as captured. If you own the app, connect it and TraceThrough also shows the HTTP calls your **server** makes (for example SSR data fetches), linked to the browser request that caused them.
+A network inspector for developers. Enter a URL, browse it in a clean Chrome or Edge window, and inspect every request: full headers, cookies, tokens and bodies, as captured. If you own a Node.js or Next.js app, connect it and TraceThrough also shows your **server**'s `fetch` calls (for example SSR data fetches), linked to the browser request that caused them.
 
 - **Local-first:** captured traffic stays on your machine: it is held in memory and written only when you export it. (The site you inspect still receives the normal requests your browser makes.)
 - **Unmasked by default, masking on request:** you see every value as it was sent. Tick **Mask secrets** before a session to hide tokens, cookies, API keys and passwords from the UI and exports (for screenshots or sharing).

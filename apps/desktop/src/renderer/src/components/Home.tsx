@@ -9,9 +9,9 @@ import { ThemeMenu } from './ThemeMenu';
 const EXAMPLES = ['https://example.com', 'https://httpbin.org', 'http://localhost:3000'];
 
 const STEPS = [
-  { title: 'A clean browser opens', body: 'Chrome or Edge starts with a fresh, separate profile. No cookies, no extensions.' },
-  { title: 'Requests stream in', body: 'Browse normally. Each request appears live with headers, cookies, bodies and timing.' },
-  { title: 'Link your server (optional)', body: 'Add App Connect to see your Node or Next.js server calls next to the browser request that caused them.' },
+  { title: 'Enter a URL', body: 'Chrome or Edge opens with a fresh, separate profile: no cookies, no extensions.' },
+  { title: 'Browse and inspect', body: 'Requests appear live. Click one for headers, cookies, bodies and timing, or export the session as HAR or JSON.' },
+  { title: 'Connect your server (optional)', body: 'Add the SDK to a Node.js or Next.js app to see its fetch calls beside the browser request that triggered them.' },
 ];
 
 export function Home() {
@@ -58,10 +58,10 @@ export function Home() {
             <span className="live-dot" aria-hidden="true" />
             <span id="inspect-title">Inspect URL</span>
           </p>
-          <h1>See every request, from a clean browser.</h1>
+          <h1>Inspect the requests behind any page.</h1>
           <p className="lede">
-            Open any site in an isolated Chrome or Edge window. Every request it makes streams into the inspector with its
-            headers, cookies and bodies.
+            Open a URL in a clean Chrome or Edge window and read every request. Own a Node.js or Next.js app? See its
+            server calls too.
           </p>
 
           <form onSubmit={start} className="url-form">
@@ -119,7 +119,7 @@ export function Home() {
               <span>
                 <strong>This is my app</strong>
                 <span className="muted small">
-                  Link server calls from App Connect. Adds a <code>traceparent</code> header to this origin only.
+                  Show your server's fetch calls (set up App Connect below). Adds a <code>traceparent</code> header to this origin only.
                 </span>
               </span>
             </label>
@@ -144,7 +144,7 @@ export function Home() {
             <span className="badge-optional">Optional</span>
           </div>
           <p className="muted">
-            See the HTTP calls your own Node.js or Next.js server makes, linked to the browser requests that caused them.
+            See the fetch calls your Node.js or Next.js server makes, linked to the browser request that triggered them.
           </p>
           <ConnectPanel />
         </section>

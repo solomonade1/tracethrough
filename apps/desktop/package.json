@@ -2,7 +2,7 @@
   "name": "@tracethrough/desktop",
   "productName": "TraceThrough",
   "version": "0.3.0",
-  "description": "Developer network inspector: browse a site in an isolated browser and inspect its traffic, as captured or with secrets masked.",
+  "description": "Network inspector: open a URL in a clean Chrome or Edge window and inspect every request, plus your Node.js or Next.js server's fetch calls.",
   "author": "TraceThrough",
   "private": true,
   "type": "module",
