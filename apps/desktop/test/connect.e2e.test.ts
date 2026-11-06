@@ -18,7 +18,7 @@ let upstream: FixtureServer;
 let sample: ChildProcess;
 let sampleUrl: string;
 
-const rows = () => win.locator('.table .body [role="row"]');
+const rows = () => win.locator('.table .body [role="row"]:not([data-kind="group"])');
 const serverRows = () => rows().filter({ has: win.locator('.badge.server') });
 const detail = () => win.getByRole('complementary', { name: 'Request details' });
 
@@ -84,7 +84,7 @@ describe('App Connect end to end', () => {
     await win.getByLabel(/Mask secrets/).check();
     await win.getByRole('button', { name: 'Start session' }).click();
     // Session start includes launching a browser.
-    await expect(win.getByText('App Connect', { exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(win.locator('.session-strip')).toContainText(/App connected|App Connect on/, { timeout: 20_000 });
 
     await expect(serverRows()).toHaveCount(2, { timeout: 20_000 });
     await expect(serverRows().filter({ hasText: '/api/ok' })).toContainText(`api_key=[REDACTED]`);
@@ -92,21 +92,21 @@ describe('App Connect end to end', () => {
     // Browser request → its server calls.
     const productsRow = rows().filter({ has: win.locator('.badge.browser') }).filter({ hasText: '/api/products' });
     await productsRow.click();
-    const calls = detail().locator('tr', { hasText: 'Server calls' }).locator('li');
+    const calls = detail().getByRole('region', { name: 'Server calls' }).getByRole('button');
     await expect(calls).toHaveCount(2);
     await expect(calls.filter({ hasText: '/api/slow' })).toContainText('200 GET');
     if (screenshotDir) await win.screenshot({ path: join(screenshotDir, '06-linked-browser.png') });
 
     // Server call → the browser request and handler that triggered it.
-    await calls.filter({ hasText: '/api/ok' }).getByRole('button').click();
-    await expect(detail().locator('tr', { hasText: 'Triggered by' })).toContainText('/api/products');
+    await calls.filter({ hasText: '/api/ok' }).click();
+    await expect(detail().getByRole('region', { name: 'Triggered by' })).toContainText('/api/products');
     await expect(detail().locator('tr', { hasText: 'Handled request' })).toContainText('GET /api/products');
     await expect(detail().locator('tr', { hasText: 'Source' })).toContainText('Server');
     if (screenshotDir) await win.screenshot({ path: join(screenshotDir, '07-linked-server.png') });
   });
 
   it('filters to server events only', async () => {
-    await win.getByRole('group', { name: 'Source' }).getByRole('button', { name: 'Server' }).click();
+    await win.getByRole('combobox', { name: 'Source' }).selectOption('server');
     await expect(rows()).toHaveCount(2);
     await win.getByRole('button', { name: 'Reset' }).click();
   });
@@ -121,12 +121,13 @@ describe('App Connect end to end', () => {
     await win.locator('#target-url').fill(`${sampleUrl}/`);
     await win.getByLabel(/This is my app/).check();
     await win.getByRole('button', { name: 'Start session' }).click();
-    await expect(win.getByText('App Connect', { exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(win.locator('.session-strip')).toContainText(/App connected|App Connect on/, { timeout: 20_000 });
 
     const ok = serverRows().filter({ hasText: '/api/ok' });
     await expect(ok).toContainText(`api_key=${SECRET_KEY}`, { timeout: 20_000 });
     await ok.click();
     await detail().getByRole('tab', { name: 'Response' }).click();
+    await detail().getByRole('button', { name: 'Pretty' }).click();
     await expect(detail().locator('pre')).toContainText('accessToken');
     await win.getByRole('button', { name: '■ Stop' }).click();
   });

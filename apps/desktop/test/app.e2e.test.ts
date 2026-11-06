@@ -14,7 +14,7 @@ let win: Page;
 let server: FixtureServer;
 let tmp: string;
 
-const rows = () => win.locator('.table .body [role="row"]');
+const rows = () => win.locator('.table .body [role="row"]:not([data-kind="group"])');
 const rowFor = (path: string) => rows().filter({ has: win.locator('.c-name', { hasText: path }) }).first();
 
 async function snap(name: string) {
@@ -58,7 +58,7 @@ describe('TraceThrough desktop', () => {
   });
 
   it('filters by status class and search text (UI-02)', async () => {
-    await win.getByRole('group', { name: 'Status' }).getByRole('button', { name: '4xx' }).click();
+    await win.getByRole('combobox', { name: 'Status' }).selectOption('4xx');
     const statuses = await rows().locator('.c-status').allTextContents();
     expect(statuses.length).toBeGreaterThan(0);
     for (const s of statuses) expect(s).toMatch(/^4\d\d$/);
@@ -78,6 +78,7 @@ describe('TraceThrough desktop', () => {
     await expect(detail.locator('tr', { hasText: 'authorization' })).toContainText('Bearer [REDACTED]');
 
     await detail.getByRole('tab', { name: 'Request' }).click();
+    await detail.getByRole('button', { name: 'Pretty' }).click(); // Tree is the default view
     await expect(detail.locator('pre')).toContainText('"password": "[REDACTED]"');
     await expect(detail.locator('mark.masked').first()).toBeVisible();
     await snap('03-detail-request');
@@ -99,15 +100,82 @@ describe('TraceThrough desktop', () => {
     expect(await win.content()).not.toContain(CANARY);
   });
 
-  it('exports a sanitized HAR after a warning (EXP-01)', async () => {
+  it('finds in the response tree and copies a path and a cURL command', async () => {
+    await win.getByRole('searchbox', { name: 'Search requests' }).fill('/api/echo');
+    await expect(rows()).toHaveCount(1);
+    await rows().first().click();
+    const detail = win.getByRole('complementary', { name: 'Request details' });
+    await detail.getByRole('tab', { name: 'Response' }).click();
+    await detail.getByRole('searchbox', { name: 'Find in response' }).fill('ada');
+    await expect(detail.getByText('1 match', { exact: true })).toBeVisible();
+    await detail.getByRole('treeitem').filter({ hasText: 'username' }).click();
+    await expect(detail.locator('.crumb')).toContainText('echo');
+    await detail.getByRole('button', { name: 'Copy path', exact: true }).click();
+    await expect.poll(() => app.evaluate(({ clipboard }) => clipboard.readText())).toBe('echo.username');
+
+    await detail.getByRole('button', { name: 'Copy as cURL' }).click();
+    await expect.poll(() => app.evaluate(({ clipboard }) => clipboard.readText())).toMatch(/^curl /);
+    const curl = await app.evaluate(({ clipboard }) => clipboard.readText());
+    expect(curl).toMatch(/^curl 'http:\/\/127\.0\.0\.1:\d+\/api\/echo'/);
+    expect(curl).toContain('-X POST');
+    expect(curl).not.toContain(CANARY);
+    await snap('03b-response-tree');
+  });
+
+  it('lists cookies set by the response (UI-03)', async () => {
+    await win.getByRole('searchbox', { name: 'Search requests' }).fill('/api/set-cookie');
+    await expect(rows()).toHaveCount(1);
+    await rows().first().click();
+    const detail = win.getByRole('complementary', { name: 'Request details' });
+    await detail.getByRole('tab', { name: 'Headers' }).click();
+    const cookies = detail.getByRole('region', { name: 'Cookies' });
+    await expect(cookies).toContainText('sid');
+    await expect(cookies).toContainText('Set');
+    await expect(cookies).not.toContainText(CANARY);
+    await win.getByRole('searchbox', { name: 'Search requests' }).fill('');
+  });
+
+  it('groups requests by page on demand (UI-04)', async () => {
+    const groups = win.locator('.table .body [data-kind="group"]');
+    await expect(groups).toHaveCount(0);
+    await win.getByLabel('Group by page').check();
+    await expect(groups.first()).toContainText('/basic');
+    await win.getByLabel('Group by page').uncheck();
+    await expect(groups).toHaveCount(0);
+  });
+
+  it('exports only the ticked rows', async () => {
+    const selectedPath = join(tmp, 'selected.har');
+    await app.evaluate(({ dialog }, filePath) => {
+      dialog.showSaveDialog = (async () => ({ canceled: false, filePath })) as unknown as typeof dialog.showSaveDialog;
+    }, selectedPath);
+
+    await rows().nth(0).getByRole('checkbox').check();
+    await rows().nth(1).getByRole('checkbox').check();
+    await expect(win.getByRole('region', { name: 'Selection' })).toContainText('2 requests selected');
+    await win.getByRole('button', { name: 'Export selected' }).click();
+    const dialog = win.getByRole('dialog', { name: 'Export' });
+    await expect(dialog.getByLabel(/Selected rows/)).toBeChecked();
+    await dialog.getByRole('button', { name: 'Save file…' }).click();
+    await expect(win.locator('.session-strip')).toContainText('Exported to');
+    const har = JSON.parse(await readFile(selectedPath, 'utf8'));
+    expect(har.log.entries).toHaveLength(2);
+    await win.getByRole('button', { name: 'Clear selection' }).click();
+    await expect(win.getByRole('region', { name: 'Selection' })).toHaveCount(0);
+  });
+
+  it('exports a sanitized HAR through the Export dialog (EXP-01)', async () => {
     const harPath = join(tmp, 'session.har');
     await app.evaluate(({ dialog }, filePath) => {
-      dialog.showMessageBox = (async () => ({ response: 0, checkboxChecked: false })) as unknown as typeof dialog.showMessageBox;
       dialog.showSaveDialog = (async () => ({ canceled: false, filePath })) as unknown as typeof dialog.showSaveDialog;
     }, harPath);
 
-    await win.getByRole('button', { name: 'Export HAR' }).click();
-    await expect(win.locator('.banner')).toContainText('Exported to');
+    await win.getByRole('button', { name: /^Export/ }).click();
+    await win.getByRole('menuitem', { name: /Export as HAR/ }).click();
+    const dialog = win.getByRole('dialog', { name: 'Export' });
+    await expect(dialog).toContainText('Known secrets are masked'); // masked session: the standard warning
+    await dialog.getByRole('button', { name: 'Save file…' }).click();
+    await expect(win.locator('.session-strip')).toContainText('Exported to');
     const text = await readFile(harPath, 'utf8');
     expect(text).not.toContain(CANARY);
     const har = JSON.parse(text);
@@ -128,7 +196,7 @@ describe('TraceThrough desktop', () => {
     await expect(win.getByLabel(/Mask secrets/)).not.toBeChecked();
     await win.getByRole('button', { name: 'Start session' }).click();
     await expect(win.getByRole('status')).toHaveText(/Recording/, { timeout: 20_000 });
-    await expect(win.locator('.banner')).toContainText('Masking is off');
+    await expect(win.locator('.session-strip')).toContainText('Masking off');
 
     await win.getByRole('searchbox', { name: 'Search requests' }).fill('/api/echo');
     await expect(rows()).toHaveCount(1, { timeout: 20_000 });
@@ -137,6 +205,7 @@ describe('TraceThrough desktop', () => {
     await detail.getByRole('tab', { name: 'Headers' }).click();
     await expect(detail.locator('tr', { hasText: 'authorization' })).toContainText(`Bearer ${CANARY}`);
     await detail.getByRole('tab', { name: 'Request' }).click();
+    await detail.getByRole('button', { name: 'Pretty' }).click();
     await expect(detail.locator('pre')).toContainText(CANARY);
 
     await win.getByRole('searchbox', { name: 'Search requests' }).fill('/api/set-cookie');

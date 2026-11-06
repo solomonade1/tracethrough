@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BrowserWindow, app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { BROWSER_LABELS, findBrowsers, type BrowserChannel } from '@tracethrough/capture';
-import { exportWarning } from '@tracethrough/core';
-import { IPC, type ExportFormat, type ExportResult } from '../shared/api';
+import { IPC, type ExportResult, type SaveFileRequest } from '../shared/api';
+import { FILE_FILTERS, parseExportFormat, parseExportScope, parseSaveFileRequest } from '../shared/validate';
 import { ConnectService } from './connect';
 import { SessionHost } from './session-host';
 
@@ -63,30 +63,31 @@ function handle(channel: string, fn: (...args: unknown[]) => unknown) {
   });
 }
 
-async function exportSession(format: unknown): Promise<ExportResult> {
-  if (format !== 'har' && format !== 'json') throw new Error('Unknown export format');
-  const data = host?.exportData(format as ExportFormat);
-  if (!data || !win || !host) return { saved: false };
-
-  const masked = host.masked;
-  const confirm = await dialog.showMessageBox(win, {
-    type: 'warning',
-    buttons: ['Export', 'Cancel'],
-    defaultId: masked ? 0 : 1,
-    cancelId: 1,
-    message: masked ? 'Export sanitized session?' : 'Export session with unmasked secrets?',
-    detail: exportWarning(masked),
-  });
-  if (confirm.response !== 0) return { saved: false };
-
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+async function saveWithDialog(defaultName: string, kind: SaveFileRequest['kind'], content: string): Promise<ExportResult> {
+  if (!win) return { saved: false };
   const { canceled, filePath } = await dialog.showSaveDialog(win, {
-    defaultPath: `tracethrough-${stamp}.${format === 'har' ? 'har' : 'json'}`,
-    filters: format === 'har' ? [{ name: 'HTTP Archive', extensions: ['har'] }] : [{ name: 'TraceThrough session', extensions: ['json'] }],
+    defaultPath: defaultName,
+    filters: FILE_FILTERS[kind],
   });
   if (canceled || !filePath) return { saved: false };
-  await writeFile(filePath, data, 'utf8');
+  await writeFile(filePath, content, 'utf8');
   return { saved: true, path: filePath };
+}
+
+/** The renderer's Export dialog has already shown the masking warning, so this only asks where to save. */
+async function exportSession(format: unknown, scope: unknown): Promise<ExportResult> {
+  const fmt = parseExportFormat(format);
+  const { ids } = parseExportScope(scope);
+  const data = host?.exportData(fmt, ids);
+  if (!data) return { saved: false };
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const suffix = ids ? '-selected' : '';
+  return saveWithDialog(`tracethrough-${stamp}${suffix}.${fmt}`, fmt, data);
+}
+
+async function saveFile(request: unknown): Promise<ExportResult> {
+  const { suggestedName, kind, content } = parseSaveFileRequest(request);
+  return saveWithDialog(suggestedName, kind, content);
 }
 
 // App Connect collector lives for the whole app; server events go to whichever session is recording.
@@ -101,7 +102,8 @@ app.whenReady().then(async () => {
   handle(IPC.start, (url, options) => host?.start(url, options));
   handle(IPC.stop, () => host?.stop());
   handle(IPC.clear, () => host?.clear());
-  handle(IPC.export, (format) => exportSession(format));
+  handle(IPC.export, (format, scope) => exportSession(format, scope));
+  handle(IPC.saveFile, (request) => saveFile(request));
   handle(IPC.connectInfo, () => connect.info());
   handle(IPC.regenerateToken, () => connect.regenerate());
   handle(IPC.environment, () => ({

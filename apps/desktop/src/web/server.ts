@@ -10,6 +10,7 @@ import { generateToken } from '@tracethrough/collector';
 import { ConnectService } from '../main/connect';
 import { SessionHost } from '../main/session-host';
 import { IPC, type AppEnvironment } from '../shared/api';
+import { parseExportFormat, parseExportScope } from '../shared/validate';
 
 export const DEFAULT_WEB_PORT = 47812;
 
@@ -39,7 +40,7 @@ export interface WebServer {
 }
 
 /** RPC routes mirror the Electron IPC channels; `events` and `status` arrive on the stream instead. */
-type RpcName = Exclude<keyof typeof IPC, 'events' | 'status'>;
+type RpcName = Exclude<keyof typeof IPC, 'events' | 'status' | 'saveFile'>;
 
 const CONTENT_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -126,10 +127,7 @@ export async function startWebServer(opts: WebServerOptions): Promise<WebServer>
     start: ([url, options]) => host.start(url, options),
     stop: () => host.stop(),
     clear: () => host.clear(),
-    export: ([format]) => {
-      if (format !== 'har' && format !== 'json') throw new Error('Unknown export format');
-      return host.exportData(format) ?? null;
-    },
+    export: ([format, scope]) => host.exportData(parseExportFormat(format), parseExportScope(scope).ids) ?? null,
     connectInfo: () => connect.info(),
     regenerateToken: () => connect.regenerate(),
     environment: (): AppEnvironment => ({

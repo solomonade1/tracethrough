@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { AppEnvironment } from '../../../shared/api';
 import { useInspector } from '../store';
+import { BrandMark } from './BrandMark';
 import { ConnectPanel } from './ConnectPanel';
 
 export function Home() {
@@ -28,7 +29,7 @@ export function Home() {
   return (
     <main className="home">
       <div className="home-brand">
-        <span className="logo" aria-hidden>◎</span>
+        <BrandMark size={28} />
         <h1>TraceThrough</h1>
         {env && <span className="muted small">v{env.version}</span>}
       </div>

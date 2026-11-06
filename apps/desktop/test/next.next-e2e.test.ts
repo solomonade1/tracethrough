@@ -19,7 +19,7 @@ let upstream: FixtureServer;
 let next: ChildProcess | undefined;
 let nextUrl: string;
 
-const rows = () => win.locator('.table .body [role="row"]');
+const rows = () => win.locator('.table .body [role="row"]:not([data-kind="group"])');
 const browserRow = (name: string) =>
   rows()
     .filter({ has: win.locator('.badge.browser') })
@@ -98,7 +98,7 @@ describe('App Connect with a real Next.js app (next dev)', () => {
 
     // Document navigation → SSR fetch made while rendering it.
     await browserRow('/').click();
-    const docCalls = detail().locator('tr', { hasText: 'Server calls' }).locator('li');
+    const docCalls = detail().getByRole('region', { name: 'Server calls' }).getByRole('button');
     await expect(docCalls).toHaveCount(1);
     await expect(docCalls).toContainText('/api/ok?api_key=[REDACTED]');
     if (screenshotDir) await win.screenshot({ path: join(screenshotDir, '08-next-ssr-linked.png') });
@@ -106,15 +106,16 @@ describe('App Connect with a real Next.js app (next dev)', () => {
     // Each browser fetch to the route handler → exactly its own upstream call.
     for (const i of [0, 1]) {
       await browserRow('/api/products').nth(i).click();
-      const apiCalls = detail().locator('tr', { hasText: 'Server calls' }).locator('li');
+      const apiCalls = detail().getByRole('region', { name: 'Server calls' }).getByRole('button');
       await expect(apiCalls).toHaveCount(1);
       await expect(apiCalls).toContainText('/api/slow');
     }
-    await detail().locator('tr', { hasText: 'Server calls' }).getByRole('button').click();
-    await expect(detail().locator('tr', { hasText: 'Triggered by' })).toContainText('/api/products');
+    await detail().getByRole('region', { name: 'Server calls' }).getByRole('button').click();
+    await expect(detail().getByRole('region', { name: 'Triggered by' })).toContainText('/api/products');
 
     // The server call's response body is captured through Next's own patched fetch.
     await detail().getByRole('tab', { name: 'Response' }).click();
+    await detail().getByRole('button', { name: 'Pretty' }).click();
     await expect(detail().locator('pre')).toContainText('waitedMs');
   });
 

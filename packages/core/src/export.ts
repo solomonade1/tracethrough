@@ -134,12 +134,33 @@ export function harHttpVersion(protocol: string | undefined): string {
 
 const orMinus1 = (n: number | undefined) => (n === undefined ? -1 : n);
 
+/** One HAR entry. `context` supplies redirect neighbours; without it redirect links are omitted. */
+export function toHarEntry(e: NetworkEvent, context: readonly NetworkEvent[] = []): HarEntry {
+  const byId = new Map(context.map((x) => [x.id, x]));
+  const redirectTarget = new Map<string, string>();
+  for (const x of context) if (x.redirectedFromId) redirectTarget.set(x.redirectedFromId, x.urlSanitized);
+  return buildHarEntry(e, byId, redirectTarget);
+}
+
 export function toHar(events: readonly NetworkEvent[], creatorVersion = '0.0.0', masked = true): Har {
   const byId = new Map(events.map((e) => [e.id, e]));
   const redirectTarget = new Map<string, string>();
   for (const e of events) if (e.redirectedFromId) redirectTarget.set(e.redirectedFromId, e.urlSanitized);
 
-  const entries = events.map((e): HarEntry => {
+  const entries = events.map((e) => buildHarEntry(e, byId, redirectTarget));
+  return {
+    log: {
+      version: '1.2',
+      creator: { name: 'TraceThrough', version: creatorVersion },
+      pages: [],
+      entries,
+      comment: exportWarning(masked),
+    },
+  };
+}
+
+function buildHarEntry(e: NetworkEvent, byId: Map<string, NetworkEvent>, redirectTarget: Map<string, string>): HarEntry {
+  {
     const t = e.timing ?? {};
     const reqBody = e.requestBody;
     const resBody = e.responseBody;
@@ -201,15 +222,5 @@ export function toHar(events: readonly NetworkEvent[], creatorVersion = '0.0.0',
       _navigationId: e.navigationId,
       _error: e.error,
     };
-  });
-
-  return {
-    log: {
-      version: '1.2',
-      creator: { name: 'TraceThrough', version: creatorVersion },
-      pages: [],
-      entries,
-      comment: exportWarning(masked),
-    },
-  };
+  }
 }

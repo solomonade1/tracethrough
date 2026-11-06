@@ -6,6 +6,7 @@ export const IPC = {
   stop: 'tl:stop',
   clear: 'tl:clear',
   export: 'tl:export',
+  saveFile: 'tl:save-file',
   connectInfo: 'tl:connect-info',
   regenerateToken: 'tl:regenerate-token',
   environment: 'tl:environment',
@@ -14,6 +15,22 @@ export const IPC = {
 } as const;
 
 export type ExportFormat = 'har' | 'json';
+
+/** Which exchanges an export covers. `ids` omitted means the whole session. */
+export interface ExportScope {
+  ids?: string[];
+}
+
+/** A text file the renderer already holds (a body, one request as HAR) that the user chose to save. */
+export interface SaveFileRequest {
+  suggestedName: string;
+  content: string;
+  kind: 'har' | 'json' | 'text';
+}
+
+/** Upper bound for ids in one export and for a saved file, enforced in main and in web mode. */
+export const MAX_EXPORT_IDS = 10_000;
+export const MAX_SAVE_BYTES = 32 * 1024 * 1024;
 
 export interface StartOptions {
   /** App Connect: treat the target URL's origin as the developer's own app and link server events. */
@@ -70,7 +87,8 @@ export interface TraceThroughApi {
   startSession(url: string, options?: StartOptions): Promise<StartResult>;
   stopSession(): Promise<void>;
   clearSession(): Promise<void>;
-  exportSession(format: ExportFormat): Promise<ExportResult>;
+  exportSession(format: ExportFormat, scope?: ExportScope): Promise<ExportResult>;
+  saveFile(request: SaveFileRequest): Promise<ExportResult>;
   getConnectInfo(): Promise<ConnectInfo>;
   regenerateToken(): Promise<ConnectInfo>;
   getEnvironment(): Promise<AppEnvironment>;

@@ -1,6 +1,6 @@
 # Workspace v2: design and implementation spec
 
-Status: Ready for implementation · Date: 5 Nov 2026 · Applies to: `apps/desktop` renderer, `packages/core`, desktop main and web mode
+Status: Implemented 6 Nov 2026 (see [§15](#15-implementation-notes)) · Date: 5 Nov 2026 · Applies to: `apps/desktop` renderer, `packages/core`, desktop main and web mode
 
 This is the full brief for rebuilding the session workspace. It covers the user flows, design tokens, layout, every component and state, copy text, how each element maps to `NetworkEvent` data, the files to change, and the tests to update.
 
@@ -189,7 +189,7 @@ Motion: the toast fades over 150ms and the switch knob slides over 150ms. Both a
 
 ### 4.4 Table column grid
 
-`grid-template-columns: 24px 46px 46px minmax(0,1fr) 112px 58px 62px 108px; gap: 6px; padding: 0 10px;`
+`grid-template-columns: 24px 54px 54px minmax(0,1fr) 112px 62px 66px 134px; gap: 6px; padding: 0 10px;` (Source is 134px so "Browser · 2 linked" and "Server · not linked" fit.)
 
 The columns are checkbox, Status, Method, Name, Domain, Size, Time and Source. Size and Time are right-aligned.
 
@@ -217,7 +217,7 @@ One 34px line of facts separated by 1px × 14px dividers. Use class `.session-st
 
 | Slot | Content | Source |
 |---|---|---|
-| Connection | When `status.connectedOrigin` is set and at least one server event has arrived this session: green dot and **"App connected"**. Set but none yet: amber dot, "App Connect on · waiting for server events". Not set: no dot, "Browser only". | `status.connectedOrigin`; server-event count from `events` |
+| Connection | When `status.connectedOrigin` is set and at least one server event has arrived this session: green dot and **"App connected"**. Set but none yet: amber dot, "App Connect on · waiting for server events". Not set: this slot is left out, because the traffic-scope slot already says "Browser traffic only". | `status.connectedOrigin`; server-event count from `events` |
 | Traffic scope | Connected: "Browser + Server · traceparent on `<host>` only". Not connected: "Browser traffic only · this site's own server calls are not visible". | `connectedOrigin` |
 | Browser | A small static chip naming the browser, such as "Chrome" or "Edge". | `status.channel` |
 | Masking | "Masking on" with an accent dot, or "Masking off" with a muted dot. It is not clickable; its tooltip reads "Masking is chosen when a session starts". | `status.masked` |
@@ -232,7 +232,7 @@ The order is left to right as listed. The bar is 50px high with 8px gaps.
 
 | Control | Spec | Maps to `EventFilter` |
 |---|---|---|
-| Search | A box 300px wide holding a magnifier icon, an input and a "☐ Bodies" checkbox separated by a left border. Input: `type="search"`, `aria-label="Search requests"` (tests use this), placeholder "Filter by URL, method or status". Debounce 120ms. | `text`, `searchBodies` |
+| Search | A box 300px wide holding a magnifier icon, an input and a "☐ Bodies" checkbox separated by a left border. Input: `type="search"`, `aria-label="Search requests"` (tests use this), placeholder "Filter by URL, method or status". The filter update is a React transition (no artificial delay), so typing stays responsive on large sessions and tests do not race a timer. | `text`, `searchBodies` |
 | Type | Select `aria-label="Type"`. Options: All types, Fetch / XHR, Doc, Fetch, XHR, Asset, Other. | `types`; "Fetch / XHR" maps to `['fetch','xhr']` |
 | Source | Select `aria-label="Source"`. Options: All sources, Browser, Server. | `sources` |
 | Status | Select `aria-label="Status"`. Options: All statuses, 2xx, 3xx, 4xx, 5xx, Failed, Pending. | `statusClasses` |
@@ -258,7 +258,7 @@ type RowItem =
 ```
 
 - **Default order: arrival order.** A server event that has a linked browser trigger *in the filtered set* is not placed in arrival order. It goes right after its trigger with `child: true`, ordered by timestamp. If the trigger is filtered out, the server event appears in arrival order as a normal row. A navigation must still be the first row (test `app.e2e.test.ts:55`).
-- **Group by page on:** group by `navigationId` in arrival order of the first event in each group. The label is the path (`nameOf`) of the group's `isNavigation` event, or else of its first event. Events without a `navigationId`, including unlinked server calls, go in a final group called "Not tied to a page" with the note "server calls without trace context". Group headers are sticky, 28px high, and show the label in mono and "N requests" in muted text. Rows are not nested in this mode.
+- **Group by page on:** group by `navigationId` in arrival order of the first event in each group. The label is the path (`nameOf`) of the group's `isNavigation` event, or else of its first event. Events without a `navigationId`, including unlinked server calls, go in a final group called "Not tied to a page" with the note "server calls without trace context". Group headers are 28px high, and show the label in mono and "N requests" in muted text. Rows are not nested in this mode.
 
 **Cells.**
 
@@ -428,7 +428,7 @@ Selected radio cards get an accent border and a 6% accent fill (`:has(input:chec
 
 ### 5.15 Toast
 
-A single toast in the bottom centre, 44px above the status bar. It is an inverted pill (`--fg` background, `--bg` text, 12px/500) with `role="status"` and `aria-live="polite"`, and stays for 1.5s. New messages replace the current one. If the clipboard write fails, the toast reads "Couldn't copy: clipboard unavailable".
+A single toast in the bottom centre, 44px above the status bar. It is an inverted pill (`--fg` background, `--bg` text, 12px/500) with `aria-live="polite"` and **no** `role="status"` (the Recording indicator is the only `role="status"` in the workspace, and tests find it by role), and stays for 1.5s. New messages replace the current one. If the clipboard write fails, the toast reads "Couldn't copy: clipboard unavailable".
 
 ### 5.16 Status bar
 
@@ -784,3 +784,32 @@ The mockup is a design reference built with sample data. Implement the spec wher
 - In the mockup the Overview link cards and General table are plain markup. In the app the Overview sections must be `<section aria-label>` regions ([§11.1](#111-e2e-updates-appsdesktoptest)), and General must include the **Source** row.
 - The mockup's "Started" times and its "Exports include…" note are static. The app derives them from the session.
 - The mockup's tree, menus and dialog have only basic keyboard support. The app must meet [§8](#8-keyboard-and-accessibility) in full.
+
+---
+
+## 15. Implementation notes
+
+Built on 6 Nov 2026. Where the build differs from the text above, this section is the record.
+
+| Area | Built as | Why |
+|---|---|---|
+| Toast | `aria-live="polite"` div, no `role` | Tests and users locate the Recording indicator by `role="status"`; two status regions made that ambiguous. |
+| Search | Transition, not a 120 ms debounce | No artificial delay; keeps the box responsive and removes a timing race in e2e tests. |
+| Group headers | Not sticky | Rows are virtualized with transforms; sticky positioning would need a second layer. They still read as headers. |
+| Session strip | "Browser only" slot dropped when App Connect is off | It repeated the "Browser traffic only" scope text. |
+| Source column | 134 px | Fits the longest linked label. |
+| Link cards | Status, then source badge, then method and URL, then duration | DOM order is status, "GET url", badge, duration so the accessible name starts with "200 GET"; CSS `order` shows the badge second. |
+| Find in text views | Highlights every hit and cycles with Enter / Shift+Enter | As specified; the count is computed from the text, not the DOM. |
+| Tree keyboard | `role="tree"` with `aria-activedescendant`; arrows, Home, End, Enter, Space | As specified in section 8. |
+| Single-request save (web mode) | Browser download via a Blob link | There is no native save dialog in the browser. |
+| Export confirmation | In-app dialog only | The native `showMessageBox` confirmation was removed (decision 4). |
+| Web `saveFile` | Handled in the client, not an RPC | The server never writes caller-chosen paths. |
+
+New pure modules and where they are tested:
+
+- `packages/core/src/copy.ts` (`toCurl`, `toFetch`, `parseCookies`, `jsonPathToString`, `exchangeAsText`, `headerLines`) and `toHarEntry` in `export.ts`: `packages/core/test/copy.test.ts`.
+- `apps/desktop/src/shared/validate.ts` (export format, scope and save-request checks used by main and the web server): `apps/desktop/test/validate.test.ts`.
+- `apps/desktop/src/renderer/src/lib/rows.ts` (trace links, nesting, group by page) and the save-name helpers in `format.ts`: `apps/desktop/test/rows.test.ts`.
+- Scoped export over the web RPC: `apps/desktop/test/web.test.ts`.
+
+Not done (still as in section 1, out of scope): code generation, insights, compare, replay, a waterfall column, recent sessions.

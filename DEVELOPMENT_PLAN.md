@@ -182,7 +182,8 @@ CI: GitHub Actions ([ci.yml](.github/workflows/ci.yml)) on Windows, macOS and Ub
 | Initiator and Notes tabs | ⏭ (initiator needs CDP; notes is DX-03) |
 | Settings screen (caps, custom redaction rules, blocked domains) | ⏭ Sprint 3 |
 | SQLite persistence / Save session / retention (SEC-02) | ⏭ Sprint 4 |
-| Navigation-grouped waterfall (UI-04), copy as cURL (DX-01) | ⏭ Sprint 4 stretch |
+| Navigation grouping (UI-04, "Group by page"), copy as cURL / fetch / HAR entry (DX-01) | ✅ (waterfall column still ⏭) |
+| Workspace v2 per [docs/design/workspace-v2.md](docs/design/workspace-v2.md): session strip, dropdown filters with Status and Bodies, linked server calls nested in the list, Headers/Cookies/Request/Response tabs with a shared JSON tree viewer (find, copy value and path, save), Export dialog with whole / filtered / selected scope, single-request save, light and dark tokens, bundled IBM Plex fonts | ✅ |
 | Windows installer (electron-builder NSIS, per-user, x64) via `pnpm package:win`; reuses the verified local Electron (`electronDist`) instead of re-downloading; Playwright unpacked from asar; only `playwright` shipped as a runtime dependency | ✅ |
 | First-run browser check: detects bundled Chromium / Chrome / Edge from standard install paths; Home disables Start with an explanation when none is found; launch tries detected browsers first | ✅ |
 | E2E suite can target the packaged executable (`TRACETHROUGH_E2E_EXECUTABLE`) | ✅ |

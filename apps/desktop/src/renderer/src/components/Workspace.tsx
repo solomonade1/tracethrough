@@ -1,24 +1,76 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { filterEvents } from '@tracethrough/core';
-import type { ExportFormat } from '../../../shared/api';
 import { useInspector } from '../store';
+import { BrandMark } from './BrandMark';
 import { DetailPane } from './DetailPane';
+import { ExportDialog } from './ExportDialog';
 import { FilterBar } from './FilterBar';
+import { MenuButton } from './Menu';
 import { RequestTable } from './RequestTable';
+import { SelectionBar } from './SelectionBar';
+import { SessionStrip } from './SessionStrip';
+import { StatusBar } from './StatusBar';
+import { Toast } from './Toast';
+
+const DEFAULT_WIDTH = 540;
+const MIN_WIDTH = 420;
+const STORAGE_KEY = 'tt.detailWidth';
+
+function loadWidth(): number {
+  try {
+    const n = Number(localStorage.getItem(STORAGE_KEY));
+    return Number.isFinite(n) && n >= MIN_WIDTH ? n : DEFAULT_WIDTH;
+  } catch {
+    return DEFAULT_WIDTH;
+  }
+}
 
 export function Workspace() {
   const status = useInspector((s) => s.status);
   const events = useInspector((s) => s.events);
   const filter = useInspector((s) => s.filter);
   const selectedId = useInspector((s) => s.selectedId);
+  const openExport = useInspector((s) => s.openExport);
   const visible = useMemo(() => filterEvents(events, filter), [events, filter]);
-  const [notice, setNotice] = useState<string | undefined>();
+  const visibleIds = useMemo(() => visible.map((e) => e.id), [visible]);
   const recording = status.state === 'recording';
 
-  async function exportAs(format: ExportFormat) {
-    setNotice(undefined);
-    const result = await window.tracethrough.exportSession(format);
-    if (result.saved) setNotice(`Exported to ${result.path}`);
+  const splitRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(loadWidth);
+
+  const clampWidth = useCallback((w: number) => {
+    const total = splitRef.current?.clientWidth ?? 1400;
+    return Math.round(Math.max(MIN_WIDTH, Math.min(w, 720, total * 0.55)));
+  }, []);
+
+  function onGripDown(e: PointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const grip = e.currentTarget;
+    grip.setPointerCapture(e.pointerId);
+    const move = (ev: globalThis.PointerEvent) => {
+      const right = splitRef.current?.getBoundingClientRect().right ?? 0;
+      setWidth(clampWidth(right - ev.clientX));
+    };
+    const up = () => {
+      grip.removeEventListener('pointermove', move);
+      grip.removeEventListener('pointerup', up);
+      setWidth((w) => {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(w));
+        } catch {
+          /* storage may be unavailable */
+        }
+        return w;
+      });
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', up);
+  }
+
+  function onGripKey(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    setWidth((w) => clampWidth(w + (e.key === 'ArrowLeft' ? 24 : -24)));
   }
 
   async function newSession() {
@@ -36,68 +88,64 @@ export function Workspace() {
   return (
     <div className="workspace">
       <header className="topbar">
-        <span className="logo" aria-hidden>◎</span>
+        <span className="brand">
+          <BrandMark size={20} />
+          TraceThrough
+        </span>
+        <span className="target" title={status.url}>
+          {status.url}
+        </span>
         <div className={`rec ${recording ? 'on' : ''}`} role="status" aria-live="polite">
           <span className="dot" aria-hidden />
           {recording ? 'Recording' : 'Stopped'}
         </div>
-        <span className="target" title={status.url}>
-          {status.url}
-        </span>
-        {status.channel && <span className="chip static">{status.channel}</span>}
-        {status.masked && (
-          <span className="chip static" title="Cookies, tokens, API keys and sensitive body fields are masked">
-            Masked
-          </span>
-        )}
-        {status.connectedOrigin && (
-          <span className="chip static connected" title="Server events from App Connect are linked by trace context">
-            App Connect
-          </span>
-        )}
         <div className="spacer" />
         {recording && (
-          <button onClick={() => void window.tracethrough.stopSession()} className="danger">
+          <button onClick={() => void window.tracethrough.stopSession()} className="btn danger">
             ■ Stop
           </button>
         )}
-        <button onClick={() => void clear()} disabled={!events.length}>
+        <button className="btn" onClick={() => void clear()} disabled={!events.length}>
           Clear
         </button>
-        <button onClick={() => void exportAs('har')} disabled={!events.length}>
-          Export HAR
+        <MenuButton
+          disabled={!events.length}
+          entries={[
+            { kind: 'label', label: 'Whole session' },
+            { label: 'Export as HAR', hint: '.har', onSelect: () => openExport('all', 'har') },
+            { label: 'Export as JSON', hint: '.json', onSelect: () => openExport('all', 'json') },
+            { kind: 'sep' },
+            { kind: 'label', label: 'Only what is shown' },
+            { label: 'Export filtered as HAR', hint: `${visible.length} of ${events.length}`, onSelect: () => openExport('view', 'har') },
+            { label: 'Export filtered as JSON', hint: `${visible.length} of ${events.length}`, onSelect: () => openExport('view', 'json') },
+          ]}
+        >
+          Export &#9662;
+        </MenuButton>
+        <button className="btn primary" onClick={() => void newSession()}>
+          + New session
         </button>
-        <button onClick={() => void exportAs('json')} disabled={!events.length}>
-          Export JSON
-        </button>
-        <button onClick={() => void newSession()}>New session</button>
       </header>
 
-      <div className="banner" role="note">
-        {status.connectedOrigin ? (
-          <>
-            <strong>Browser traffic + App Connect.</strong> Server calls appear only if your app at{' '}
-            <code>{status.connectedOrigin}</code> runs the SDK; they link to browser requests only through matching trace
-            context.
-          </>
-        ) : (
-          <>
-            <strong>Browser traffic only.</strong> Requests this site's servers make to other services are not visible
-            here.
-          </>
-        )}{' '}
-        {status.masked
-          ? 'Secrets are masked before anything is stored or exported.'
-          : 'Masking is off: cookies, tokens and bodies are shown exactly as captured, and exports include them.'}
-        {notice && <span className="notice"> {notice}</span>}
-      </div>
-
+      <SessionStrip />
       <FilterBar events={events} shown={visible.length} dropped={status.dropped} />
 
-      <div className={`split ${selectedId ? 'with-detail' : ''}`}>
-        <RequestTable events={visible} />
-        {selectedId && <DetailPane />}
+      <div className={`split ${selectedId ? 'with-detail' : ''}`} ref={splitRef} style={{ ['--detail-w' as string]: `${width}px` }}>
+        <div className="list">
+          <RequestTable events={visible} />
+          <SelectionBar />
+        </div>
+        {selectedId && (
+          <>
+            <div className="grip" role="separator" aria-orientation="vertical" aria-label="Resize details" tabIndex={0} onPointerDown={onGripDown} onKeyDown={onGripKey} />
+            <DetailPane />
+          </>
+        )}
       </div>
+
+      <StatusBar />
+      <ExportDialog visibleIds={visibleIds} />
+      <Toast />
     </div>
   );
 }

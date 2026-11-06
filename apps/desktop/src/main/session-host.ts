@@ -151,10 +151,12 @@ export class SessionHost {
   }
 
   /** Serialized export of the current buffer (masked or as captured, per session), or undefined when empty. */
-  exportData(format: ExportFormat): string | undefined {
+  exportData(format: ExportFormat, ids?: readonly string[]): string | undefined {
     const session = this.#session;
     if (!session || session.buffer.size === 0) return undefined;
-    const events = session.buffer.all();
+    const wanted = ids ? new Set(ids) : undefined;
+    const events = wanted ? session.buffer.all().filter((e) => wanted.has(e.id)) : session.buffer.all();
+    if (!events.length) return undefined;
     const doc =
       format === 'har'
         ? toHar(events, this.opts.appVersion, session.masking)

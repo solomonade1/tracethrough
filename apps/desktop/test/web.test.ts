@@ -187,6 +187,13 @@ describe('local web mode server', () => {
     expect(JSON.parse(har).log.entries.length).toBeGreaterThan(0);
     expect(har).not.toContain(CANARY);
 
+    // A scoped export carries only the requested exchanges; unknown ids match nothing.
+    const [first] = JSON.parse(har).log.entries.length ? [...stream.events.values()] : [];
+    const one = await rpc<string>('export', 'har', { ids: [first!.id] });
+    expect(JSON.parse(one).log.entries).toHaveLength(1);
+    expect(await rpc('export', 'har', { ids: ['nope'] })).toBeNull();
+    await expect(rpc('export', 'har', { ids: 'all' })).rejects.toThrow('Invalid export scope');
+
     await rpc('stop');
     await stream.until(() => stream.statuses.at(-1)!.state === 'stopped');
     stream.close();

@@ -45,8 +45,9 @@ Installers are unsigned unless a release's notes say otherwise. The release work
 1. Open TraceThrough, enter a URL such as `https://example.com`, and click **Start session**. Paste the full URL; the box starts with `https://`, and a doubled scheme is corrected for you.
 2. A separate browser window opens with a fresh, empty profile. Browse there as normal.
 3. Every request streams into TraceThrough. Click a row to see its overview, headers, request, response and timing.
-4. Use the search box and the filter chips (status class, type, Browser/Server, method, domain) to narrow the list. Tick **Bodies** to search body previews too.
-5. **Export HAR** or **Export JSON** saves the session. Without **Mask secrets** the file contains live cookies and tokens: treat it as a secret. Sessions live in memory until you export them. HAR entries carry the HTTP version the browser reported (`http/1.1`, `h2`, `h3`); when it was not observed (server-side events, older sessions) the entry says `unknown` rather than guessing HTTP/1.1.
+4. Use the search box and the dropdowns (type, source, status, method, domain) to narrow the list. Tick **Bodies** to search body previews too, and **Group by page** to see requests under the page that caused them.
+5. In the detail pane, **Headers** lists request headers, response headers and cookies, and **Request** and **Response** open bodies in a tree you can search, copy from (a value, its path, or the whole body) and save. **Copy as cURL** (and a menu with fetch, headers, a HAR entry or everything) is in the pane header.
+6. **Export** saves the whole session or only what is shown as HAR or JSON; tick rows first to export just those. Without **Mask secrets** the file contains live cookies and tokens: treat it as a secret. Sessions live in memory until you export them. HAR entries carry the HTTP version the browser reported (`http/1.1`, `h2`, `h3`); when it was not observed (server-side events, older sessions) the entry says `unknown` rather than guessing HTTP/1.1.
 
 Only inspect sites you are authorized to access.
 

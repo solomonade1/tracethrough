@@ -1,5 +1,14 @@
-import { exportWarning } from '@tracethrough/core';
-import { IPC, type EventBatch, type SessionStatus, type TraceThroughApi } from '../shared/api';
+import { IPC, type EventBatch, type ExportResult, type SessionStatus, type TraceThroughApi } from '../shared/api';
+import { parseSaveFileRequest } from '../shared/validate';
+
+function download(name: string, content: string): ExportResult {
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([content], { type: 'application/octet-stream' }));
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+  return { saved: true, path: `${name} (your browser's downloads)` };
+}
 
 type Listener = (payload: unknown) => void;
 
@@ -12,8 +21,6 @@ export function createWebApi(token: string, onLost: (reason: string) => void): T
   const auth = { authorization: `Bearer ${token}` };
   const listeners = new Map<string, Set<Listener>>();
   let streaming = false;
-  /** Whether the current session masks secrets, from the latest status push (picks the export warning). */
-  let masked = true;
 
   async function call<T>(name: string, ...args: unknown[]): Promise<T> {
     let res: Response;
@@ -56,7 +63,6 @@ export function createWebApi(token: string, onLost: (reason: string) => void): T
           pending = pending.slice(end + 1);
           if (!line) continue;
           const { channel, payload } = JSON.parse(line) as { channel: string; payload: unknown };
-          if (channel === IPC.status) masked = (payload as SessionStatus).masked ?? true;
           for (const listener of listeners.get(channel) ?? []) listener(payload);
         }
       }
@@ -82,18 +88,17 @@ export function createWebApi(token: string, onLost: (reason: string) => void): T
     startSession: (url, options) => call('start', url, options),
     stopSession: () => call('stop'),
     clearSession: () => call('clear'),
-    async exportSession(format) {
-      const data = await call<string | null>('export', format);
-      const question = masked ? 'Export sanitized session?' : 'Export session with unmasked secrets?';
-      if (!data || !confirm(`${question}\n\n${exportWarning(masked)}`)) return { saved: false };
+    async exportSession(format, scope) {
+      // The in-app Export dialog has already shown the masking warning.
+      const data = await call<string | null>('export', format, scope);
+      if (!data) return { saved: false };
       const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const name = `tracethrough-${stamp}.${format === 'har' ? 'har' : 'json'}`;
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
-      link.download = name;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
-      return { saved: true, path: `${name} (your browser's downloads)` };
+      return download(`tracethrough-${stamp}${scope?.ids ? '-selected' : ''}.${format}`, data);
+    },
+    // Web mode has no save dialog: the browser downloads the file.
+    async saveFile(request) {
+      const { suggestedName, content } = parseSaveFileRequest(request);
+      return download(suggestedName, content);
     },
     getConnectInfo: () => call('connectInfo'),
     regenerateToken: () => call('regenerateToken'),
