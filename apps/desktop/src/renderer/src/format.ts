@@ -38,6 +38,31 @@ export function statusTone(e: NetworkEvent): 'ok' | 'redirect' | 'client' | 'ser
   return 'ok';
 }
 
+/** File extension for saving a body, from its MIME type. */
+export function extForMime(mime: string | undefined): string {
+  const m = mime?.toLowerCase() ?? '';
+  if (m.includes('json')) return 'json';
+  if (m.includes('html')) return 'html';
+  if (m.includes('javascript')) return 'js';
+  if (m.includes('css')) return 'css';
+  if (m.includes('xml')) return 'xml';
+  return 'txt';
+}
+
+/** `tracethrough-get-products-2026-11-05T11-02-14.json` */
+export function saveNameFor(e: NetworkEvent, ext: string): string {
+  let last = 'request';
+  try {
+    const parts = new URL(e.urlSanitized).pathname.split('/').filter(Boolean);
+    last = parts[parts.length - 1] ?? 'root';
+  } catch {
+    /* keep the default */
+  }
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const slug = last.replace(/[^\w.-]+/g, '-').slice(0, 40);
+  return `tracethrough-${e.method.toLowerCase()}-${slug}-${stamp}.${ext}`;
+}
+
 /** Precise, honest explanations for missing bodies (US-06). */
 export function unavailableMessage(body: BodyPreview): string {
   const size = body.sizeBytes !== undefined ? ` (${formatBytes(body.sizeBytes)})` : '';

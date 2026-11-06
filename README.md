@@ -1,10 +1,12 @@
 # TraceThrough
 
-A developer network inspector. Enter a URL, browse it in an isolated Chrome or Edge window, and inspect the traffic: full headers, cookies, tokens and bodies, as captured. If you own the app, connect it and TraceThrough also shows the HTTP calls your **server** makes (for example SSR data fetches), linked to the browser request that caused them.
+A network inspector for developers. Enter a URL, browse it in a clean Chrome or Edge window, and inspect every request: full headers, cookies, tokens and bodies, as captured. If you own a Node.js or Next.js app, connect it and TraceThrough also shows your **server**'s `fetch` calls (for example SSR data fetches), linked to the browser request that caused them.
 
 - **Local-first:** captured traffic stays on your machine: it is held in memory and written only when you export it. (The site you inspect still receives the normal requests your browser makes.)
 - **Unmasked by default, masking on request:** you see every value as it was sent. Tick **Mask secrets** before a session to hide tokens, cookies, API keys and passwords from the UI and exports (for screenshots or sharing).
 - **Honest:** every row is labelled **Browser** or **Server**. For sites you don't own you only see browser traffic.
+
+**Docs:** [Getting started](docs/getting-started.md) · [Inspect a website](docs/inspect-a-website.md) · [Connect Next.js](docs/connect-nextjs.md) · [Connect Node.js](docs/connect-nodejs.md) · [Privacy](docs/privacy-and-sensitive-data.md) · [Troubleshooting](docs/troubleshooting.md) · [Known limitations](docs/known-limitations.md) (all in [docs/](docs/README.md); the app's **Read docs** button opens them).
 
 Contents: [Install](#install) · [Inspect a website](#inspect-a-website) · [Connect your own app](#connect-your-own-app) · [Run in your browser](#run-in-your-browser-no-installer) · [Troubleshooting](#troubleshooting) · [Develop](#develop-this-repository) · [Release](#releasing)
 
@@ -42,11 +44,12 @@ Installers are unsigned unless a release's notes say otherwise. The release work
 
 ## Inspect a website
 
-1. Open TraceThrough, enter a URL such as `https://example.com`, and click **Start session**. Paste the full URL; the box starts with `https://`, and a doubled scheme is corrected for you.
+1. Open TraceThrough (the **Inspect Website** tab is selected), enter a URL such as `https://example.com`, and click **Start session**. A bare host such as `example.com` gets `https://` (`http://` for `localhost`), and a doubled scheme is corrected for you.
 2. A separate browser window opens with a fresh, empty profile. Browse there as normal.
 3. Every request streams into TraceThrough. Click a row to see its overview, headers, request, response and timing.
-4. Use the search box and the filter chips (status class, type, Browser/Server, method, domain) to narrow the list. Tick **Bodies** to search body previews too.
-5. **Export HAR** or **Export JSON** saves the session. Without **Mask secrets** the file contains live cookies and tokens: treat it as a secret. Sessions live in memory until you export them. HAR entries carry the HTTP version the browser reported (`http/1.1`, `h2`, `h3`); when it was not observed (server-side events, older sessions) the entry says `unknown` rather than guessing HTTP/1.1.
+4. Use the search box and the dropdowns (type, source, status, method, domain) to narrow the list. Tick **Bodies** to search body previews too, and **Group by page** to see requests under the page that caused them.
+5. In the detail pane, **Headers** lists request headers, response headers and cookies, and **Request** and **Response** open bodies in a tree you can search, copy from (a value, its path, or the whole body) and save. **Copy as cURL** (and a menu with fetch, headers, a HAR entry or everything) is in the pane header.
+6. **Export** saves the whole session or only what is shown as HAR or JSON; tick rows first to export just those. Without **Mask secrets** the file contains live cookies and tokens: treat it as a secret. Sessions live in memory until you export them. HAR entries carry the HTTP version the browser reported (`http/1.1`, `h2`, `h3`); when it was not observed (server-side events, older sessions) the entry says `unknown` rather than guessing HTTP/1.1.
 
 Only inspect sites you are authorized to access.
 
@@ -60,7 +63,7 @@ Connecting adds your server's outgoing `fetch` calls to the list, each linked to
 
 ### 1. Get the connection details
 
-Open TraceThrough. The **Connect App** card on the home screen shows:
+Open TraceThrough and choose the **Connect App** tab. **Get started** walks you through four steps (choose your framework, install the SDK, configure it, verify the connection) and the **Configure** step shows:
 
 - a **collector URL**, `http://127.0.0.1:47811` by default
 - a **token**, stored per install (you can regenerate it)
@@ -129,7 +132,7 @@ console.log(handle.enabled ? 'TraceThrough connected' : `TraceThrough off: ${han
 
 ### 4. Inspect your app
 
-In TraceThrough, enter your app's URL (for example `http://localhost:3000`), **tick "This is my app"**, and start the session. TraceThrough adds a `traceparent` header to requests to that origin only. Server calls made while handling those requests appear as **Server** rows, and the detail pane links each browser request to its server calls and back. Links are shown only on an exact trace-id match, never guessed.
+The wizard's **Verify connection** step shows real collector state (waiting, SDK activity detected, connected, or a connection issue). It ends with **Inspect my app**, which opens **Inspect Website** with "This is my app" already ticked. Or do it by hand: enter your app's URL (for example `http://localhost:3000`), **tick "This is my app"**, and start the session. TraceThrough adds a `traceparent` header to requests to that origin only. Server calls made while handling those requests appear as **Server** rows, and the detail pane links each browser request to its server calls and back. Links are shown only on an exact trace-id match, never guessed.
 
 ### Options and safety defaults
 
@@ -285,7 +288,7 @@ CI ([ci.yml](.github/workflows/ci.yml)) runs these on Windows, macOS and Ubuntu 
 
 ### Try App Connect with the samples
 
-Start the fixture API, then a sample app, using the token from the **Connect App** card:
+Start the fixture API, then a sample app, using the token from the **Connect App** tab (Configure step):
 
 ```bash
 pnpm fixtures

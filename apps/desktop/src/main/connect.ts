@@ -46,6 +46,7 @@ export class ConnectService {
       token: this.#collector?.token,
       received: this.#received,
       ignored: this.#ignored,
+      rejected: this.#collector?.stats.rejected ?? 0,
       error: this.#error,
     };
   }
