@@ -1,9 +1,10 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BrowserWindow, app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron';
+import { BrowserWindow, app, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
 import { BROWSER_LABELS, findBrowsers, type BrowserChannel } from '@tracethrough/capture';
 import { IPC, type ExportResult, type SaveFileRequest } from '../shared/api';
+import { parseExternalUrl } from '../shared/links';
 import { FILE_FILTERS, parseExportFormat, parseExportScope, parseSaveFileRequest } from '../shared/validate';
 import { ConnectService } from './connect';
 import { SessionHost } from './session-host';
@@ -106,8 +107,11 @@ app.whenReady().then(async () => {
   handle(IPC.saveFile, (request) => saveFile(request));
   handle(IPC.connectInfo, () => connect.info());
   handle(IPC.regenerateToken, () => connect.regenerate());
+  handle(IPC.openExternal, (url) => shell.openExternal(parseExternalUrl(url)));
   handle(IPC.environment, () => ({
     version: app.getVersion(),
+    platform: process.platform,
+    runtime: 'desktop',
     browsers: findBrowsers().map((channel) => ({ channel, label: BROWSER_LABELS[channel] })),
   }));
   await connect.start();

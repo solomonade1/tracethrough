@@ -1,8 +1,11 @@
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { filterEvents } from '@tracethrough/core';
 import { useInspector } from '../store';
+import { useHome } from '../lib/home';
+import { useEnvironment } from '../lib/useEnvironment';
 import { BrandMark } from './BrandMark';
 import { DetailPane } from './DetailPane';
+import { DocsMenu } from './DocsMenu';
 import { ExportDialog } from './ExportDialog';
 import { FilterBar } from './FilterBar';
 import { MenuButton } from './Menu';
@@ -36,6 +39,7 @@ export function Workspace() {
   const visible = useMemo(() => filterEvents(events, filter), [events, filter]);
   const visibleIds = useMemo(() => visible.map((e) => e.id), [visible]);
   const recording = status.state === 'recording';
+  const env = useEnvironment();
 
   const splitRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(loadWidth);
@@ -78,6 +82,7 @@ export function Workspace() {
   async function newSession() {
     if (events.length && !confirm('Start a new session? Exchanges that have not been exported will be discarded.')) return;
     await window.tracethrough.stopSession();
+    useHome.getState().resetSessionPrefs();
     useInspector.getState().reset();
     useInspector.getState().setStatus({ state: 'idle', dropped: 0 });
   }
@@ -93,6 +98,7 @@ export function Workspace() {
         <span className="brand">
           <BrandMark size={20} />
           TraceThrough
+          {env && <span className="muted small ver">v{env.version}</span>}
         </span>
         <span className="target" title={status.url}>
           <Icon name="link" />
@@ -128,6 +134,7 @@ export function Workspace() {
         <button className="btn primary" onClick={() => void newSession()}>
           + New session
         </button>
+        <DocsMenu />
         <ThemeMenu />
       </header>
 

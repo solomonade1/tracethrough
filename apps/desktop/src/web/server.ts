@@ -40,7 +40,7 @@ export interface WebServer {
 }
 
 /** RPC routes mirror the Electron IPC channels; `events` and `status` arrive on the stream instead. */
-type RpcName = Exclude<keyof typeof IPC, 'events' | 'status' | 'saveFile'>;
+type RpcName = Exclude<keyof typeof IPC, 'events' | 'status' | 'saveFile' | 'openExternal'>;
 
 const CONTENT_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -132,6 +132,8 @@ export async function startWebServer(opts: WebServerOptions): Promise<WebServer>
     regenerateToken: () => connect.regenerate(),
     environment: (): AppEnvironment => ({
       version: opts.appVersion,
+      platform: process.platform,
+      runtime: 'web',
       browsers: findBrowsers().map((channel) => ({ channel, label: BROWSER_LABELS[channel] })),
     }),
   };

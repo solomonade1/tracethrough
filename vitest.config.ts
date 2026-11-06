@@ -9,6 +9,7 @@ export default defineConfig({
       'apps/desktop/test/session-host.test.ts',
       'apps/desktop/test/validate.test.ts',
       'apps/desktop/test/rows.test.ts',
+      'apps/desktop/test/home-logic.test.ts',
     ],
     // Real `next dev` / `next start` runs; slow, so they have their own config (`pnpm test:next-matrix`).
     exclude: [...configDefaults.exclude, '**/*.next-matrix.test.ts'],

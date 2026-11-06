@@ -70,12 +70,17 @@ afterAll(async () => {
 });
 
 describe('App Connect end to end', () => {
-  it('shows collector status and setup on the home screen', async () => {
-    await expect(win.getByRole('heading', { name: 'Connect App' })).toBeVisible();
-    await expect(win.locator('.connect [role="status"]')).toContainText('Collector listening on http://127.0.0.1:');
+  it('shows collector status and setup in the Connect App wizard', async () => {
+    await win.getByRole('tab', { name: /Connect App/ }).click();
+    await win.getByRole('radio', { name: /^Node\.js/ }).check();
+    await win.getByRole('button', { name: 'Get started' }).click();
+    await win.getByRole('button', { name: 'Continue', exact: true }).click(); // Install -> Configure
+    await expect(win.getByText(/Collector listening on http:\/\/127\.0\.0\.1:/)).toBeVisible();
     // Token is hidden until asked for.
-    await expect(win.locator('.connect')).not.toContainText(E2E_COLLECTOR_TOKEN);
+    await expect(win.getByRole('tabpanel')).not.toContainText(E2E_COLLECTOR_TOKEN);
     if (screenshotDir) await win.screenshot({ path: join(screenshotDir, '05-connect-home.png') });
+    await win.getByRole('button', { name: 'Exit setup' }).click();
+    await win.getByRole('tab', { name: /Inspect Website/ }).click();
   });
 
   it('links server-side fetches to the browser request that caused them (US-05, COR-01)', async () => {

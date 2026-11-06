@@ -157,10 +157,12 @@ describe('local web mode server', () => {
   });
 
   it('reports the environment and App Connect collector', async () => {
-    const env = await rpc<{ version: string }>('environment');
+    const env = await rpc<{ version: string; platform: string; runtime: string }>('environment');
     expect(env.version).toBe('0.0.0-test');
+    expect(env).toMatchObject({ runtime: 'web', platform: process.platform });
     const info = await rpc<ConnectInfo>('connectInfo');
     expect(info.listening).toBe(true);
+    expect(info).toMatchObject({ received: 0, ignored: 0, rejected: expect.any(Number) });
     expect(info.collectorUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
   });
 

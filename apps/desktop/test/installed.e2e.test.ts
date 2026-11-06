@@ -41,7 +41,7 @@ afterAll(async () => {
 describe('installed app smoke', () => {
   it('loads the window, detects the environment and completes a fixture capture', async () => {
     const { win } = await launch();
-    await expect(win.getByText('Inspect URL', { exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(win.getByRole('heading', { name: 'What would you like to inspect?' })).toBeVisible({ timeout: 30_000 });
 
     // Environment detection: the right build, and a browser to capture with.
     const env = await win.evaluate(() => window.tracethrough.getEnvironment());
@@ -62,11 +62,11 @@ describe('installed app smoke', () => {
 
   it('says so clearly when Chrome and Edge are missing, and still loads the inspector', async () => {
     const { win } = await launch({ TRACETHROUGH_TEST_NO_BROWSERS: '1' });
-    await expect(win.getByText('Inspect URL', { exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(win.getByRole('heading', { name: 'What would you like to inspect?' })).toBeVisible({ timeout: 30_000 });
     await expect(win.getByRole('alert')).toContainText('needs Google Chrome or Microsoft Edge');
     await expect(win.getByRole('button', { name: 'Start session' })).toBeDisabled();
     // The rest of the UI is there: the user can still read about App Connect and set it up.
-    await expect(win.getByRole('heading', { name: 'Connect App' })).toBeVisible();
+    await expect(win.getByRole('tab', { name: /Connect App/ })).toBeVisible();
     expect((await win.evaluate(() => window.tracethrough.getEnvironment())).browsers).toEqual([]);
   });
 });

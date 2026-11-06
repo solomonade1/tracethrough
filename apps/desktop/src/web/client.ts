@@ -1,4 +1,5 @@
 import { IPC, type EventBatch, type ExportResult, type SessionStatus, type TraceThroughApi } from '../shared/api';
+import { parseExternalUrl } from '../shared/links';
 import { parseSaveFileRequest } from '../shared/validate';
 
 function download(name: string, content: string): ExportResult {
@@ -103,6 +104,10 @@ export function createWebApi(token: string, onLost: (reason: string) => void): T
     getConnectInfo: () => call('connectInfo'),
     regenerateToken: () => call('regenerateToken'),
     getEnvironment: () => call('environment'),
+    // Same allowlist as the desktop app; the page is a loopback tab, so the link opens in a new tab.
+    async openExternal(url) {
+      window.open(parseExternalUrl(url), '_blank', 'noopener,noreferrer');
+    },
     onEvents: (listener) => subscribe<EventBatch>(IPC.events, listener),
     onStatus: (listener) => subscribe<SessionStatus>(IPC.status, listener),
   };

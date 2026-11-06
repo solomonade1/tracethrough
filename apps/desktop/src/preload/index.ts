@@ -16,6 +16,7 @@ const api: TraceThroughApi = {
   getConnectInfo: () => ipcRenderer.invoke(IPC.connectInfo),
   regenerateToken: () => ipcRenderer.invoke(IPC.regenerateToken),
   getEnvironment: () => ipcRenderer.invoke(IPC.environment),
+  openExternal: (url) => ipcRenderer.invoke(IPC.openExternal, url),
   onEvents: (listener) => subscribe<EventBatch>(IPC.events, listener),
   onStatus: (listener) => subscribe<SessionStatus>(IPC.status, listener),
 };

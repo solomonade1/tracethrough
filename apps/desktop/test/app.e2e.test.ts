@@ -36,7 +36,7 @@ afterAll(async () => {
 
 describe('TraceThrough desktop', () => {
   it('rejects unsupported URL schemes on the home screen (URL-01)', async () => {
-    await expect(win.getByText('Inspect URL', { exact: true })).toBeVisible();
+    await expect(win.getByRole('heading', { name: 'What would you like to inspect?' })).toBeVisible();
     await win.locator('#target-url').fill('file:///etc/passwd');
     await win.getByRole('button', { name: 'Start session' }).click();
     await expect(win.getByRole('alert')).toContainText('Unsupported scheme');

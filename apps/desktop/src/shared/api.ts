@@ -10,6 +10,7 @@ export const IPC = {
   connectInfo: 'tl:connect-info',
   regenerateToken: 'tl:regenerate-token',
   environment: 'tl:environment',
+  openExternal: 'tl:open-external',
   events: 'tl:events',
   status: 'tl:status',
 } as const;
@@ -69,12 +70,18 @@ export interface ConnectInfo {
   received: number;
   /** Server events that arrived while no session was recording. */
   ignored: number;
+  /** Requests the collector refused since it started (wrong token, wrong path, malformed batch). */
+  rejected: number;
   error?: string;
 }
 
 /** Facts about this machine the UI needs before a session starts. */
 export interface AppEnvironment {
   version: string;
+  /** `process.platform` of the machine running capture; picks the default shell for setup commands. */
+  platform: string;
+  /** Desktop window, or the local web mode served to the developer's own browser. */
+  runtime: 'desktop' | 'web';
   /** Browsers that can host a capture session, in the order they will be tried. */
   browsers: { channel: string; label: string }[];
 }
@@ -92,6 +99,8 @@ export interface TraceThroughApi {
   getConnectInfo(): Promise<ConnectInfo>;
   regenerateToken(): Promise<ConnectInfo>;
   getEnvironment(): Promise<AppEnvironment>;
+  /** Opens an allowlisted TraceThrough link (docs, releases, npm) in the user's own browser. */
+  openExternal(url: string): Promise<void>;
   onEvents(listener: (batch: EventBatch) => void): () => void;
   onStatus(listener: (status: SessionStatus) => void): () => void;
 }

@@ -6,6 +6,8 @@ A network inspector for developers. Enter a URL, browse it in a clean Chrome or 
 - **Unmasked by default, masking on request:** you see every value as it was sent. Tick **Mask secrets** before a session to hide tokens, cookies, API keys and passwords from the UI and exports (for screenshots or sharing).
 - **Honest:** every row is labelled **Browser** or **Server**. For sites you don't own you only see browser traffic.
 
+**Docs:** [Getting started](docs/getting-started.md) · [Inspect a website](docs/inspect-a-website.md) · [Connect Next.js](docs/connect-nextjs.md) · [Connect Node.js](docs/connect-nodejs.md) · [Privacy](docs/privacy-and-sensitive-data.md) · [Troubleshooting](docs/troubleshooting.md) · [Known limitations](docs/known-limitations.md) (all in [docs/](docs/README.md); the app's **Read docs** button opens them).
+
 Contents: [Install](#install) · [Inspect a website](#inspect-a-website) · [Connect your own app](#connect-your-own-app) · [Run in your browser](#run-in-your-browser-no-installer) · [Troubleshooting](#troubleshooting) · [Develop](#develop-this-repository) · [Release](#releasing)
 
 ---
@@ -42,7 +44,7 @@ Installers are unsigned unless a release's notes say otherwise. The release work
 
 ## Inspect a website
 
-1. Open TraceThrough, enter a URL such as `https://example.com`, and click **Start session**. Paste the full URL; the box starts with `https://`, and a doubled scheme is corrected for you.
+1. Open TraceThrough (the **Inspect Website** tab is selected), enter a URL such as `https://example.com`, and click **Start session**. A bare host such as `example.com` gets `https://` (`http://` for `localhost`), and a doubled scheme is corrected for you.
 2. A separate browser window opens with a fresh, empty profile. Browse there as normal.
 3. Every request streams into TraceThrough. Click a row to see its overview, headers, request, response and timing.
 4. Use the search box and the dropdowns (type, source, status, method, domain) to narrow the list. Tick **Bodies** to search body previews too, and **Group by page** to see requests under the page that caused them.
@@ -61,7 +63,7 @@ Connecting adds your server's outgoing `fetch` calls to the list, each linked to
 
 ### 1. Get the connection details
 
-Open TraceThrough. The **Connect App** card on the home screen shows:
+Open TraceThrough and choose the **Connect App** tab. **Get started** walks you through four steps (choose your framework, install the SDK, configure it, verify the connection) and the **Configure** step shows:
 
 - a **collector URL**, `http://127.0.0.1:47811` by default
 - a **token**, stored per install (you can regenerate it)
@@ -130,7 +132,7 @@ console.log(handle.enabled ? 'TraceThrough connected' : `TraceThrough off: ${han
 
 ### 4. Inspect your app
 
-In TraceThrough, enter your app's URL (for example `http://localhost:3000`), **tick "This is my app"**, and start the session. TraceThrough adds a `traceparent` header to requests to that origin only. Server calls made while handling those requests appear as **Server** rows, and the detail pane links each browser request to its server calls and back. Links are shown only on an exact trace-id match, never guessed.
+The wizard's **Verify connection** step shows real collector state (waiting, SDK activity detected, connected, or a connection issue). It ends with **Inspect my app**, which opens **Inspect Website** with "This is my app" already ticked. Or do it by hand: enter your app's URL (for example `http://localhost:3000`), **tick "This is my app"**, and start the session. TraceThrough adds a `traceparent` header to requests to that origin only. Server calls made while handling those requests appear as **Server** rows, and the detail pane links each browser request to its server calls and back. Links are shown only on an exact trace-id match, never guessed.
 
 ### Options and safety defaults
 
@@ -286,7 +288,7 @@ CI ([ci.yml](.github/workflows/ci.yml)) runs these on Windows, macOS and Ubuntu 
 
 ### Try App Connect with the samples
 
-Start the fixture API, then a sample app, using the token from the **Connect App** card:
+Start the fixture API, then a sample app, using the token from the **Connect App** tab (Configure step):
 
 ```bash
 pnpm fixtures
